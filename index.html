@@ -1,0 +1,1834 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Dear San'el — Gestion Atelier & Boutiques</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRGVhciBTYW4nZWwiLCJzaG9ydF9uYW1lIjoiRGVhclNhbmVsIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNGREZCRjciLCJ0aGVtZV9jb2xvciI6IiMxQTFBMUEifQ==">
+<style>
+:root{
+  --cream:#FDFBF7; --charcoal:#1A1A1A; --sage:#8A9A86; --sand:#E8E2D9;
+  --warmgray:#706F6D; --clay:#C87D55; --sage-dark:#5F7359;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--cream);color:var(--charcoal);font-family:-apple-system,'Inter',system-ui,sans-serif;padding-bottom:64px;}
+h1,h2,h3,h4{font-family:'Georgia','Playfair Display',serif;font-weight:600;margin:0;}
+a{color:inherit;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+.card{background:#fff;border:1px solid var(--sand);border-radius:12px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:10px;font-weight:600;}
+.badge-sage{background:#EBF0EC;color:#435241;}
+.badge-sand{background:#F4F0EA;color:#6B5E52;}
+.badge-clay{background:#FDF2EC;color:#9C4113;}
+.btn{border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:600;letter-spacing:.02em;}
+.btn-dark{background:var(--charcoal);color:var(--cream);}
+.btn-outline{background:#fff;border:1px solid var(--charcoal);color:var(--charcoal);}
+.btn-sage{background:var(--sage);color:#fff;}
+.btn-danger{background:#fff;border:1px solid #dc2626;color:#dc2626;}
+.btn-sm{padding:5px 10px;font-size:10px;border-radius:6px;}
+.input{width:100%;padding:9px 10px;border:1px solid var(--sand);border-radius:8px;background:var(--cream);font-size:13px;}
+label.lbl{display:block;font-size:11px;color:var(--warmgray);margin-bottom:3px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{background:rgba(232,226,217,.35);text-transform:uppercase;font-size:10px;letter-spacing:.03em;color:var(--warmgray);text-align:left;padding:8px;border-bottom:1px solid var(--sand);}
+td{padding:8px;border-bottom:1px solid var(--sand);}
+tr:hover td{background:rgba(232,226,217,.15);}
+.hidden{display:none !important;}
+.flex{display:flex;}
+.between{justify-content:space-between;}
+.center{align-items:center;}
+.gap-2{gap:8px;}.gap-3{gap:12px;}
+.grid{display:grid;gap:16px;}
+.g2{grid-template-columns:repeat(2,1fr);}
+.g3{grid-template-columns:repeat(3,1fr);}
+.g4{grid-template-columns:repeat(4,1fr);}
+@media(max-width:760px){.g2,.g3,.g4{grid-template-columns:repeat(2,1fr);}}
+.p4{padding:16px;}.p3{padding:12px;}
+.muted{color:var(--warmgray);}
+.serif{font-family:'Georgia','Playfair Display',serif;}
+.mono{font-family:monospace;}
+#modal-overlay{position:fixed;inset:0;background:rgba(26,26,26,.5);backdrop-filter:blur(3px);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;}
+#modal-box{background:#fff;max-width:520px;width:100%;max-height:92vh;overflow-y:auto;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25);}
+.top-header{position:sticky;top:0;z-index:40;background:rgba(253,251,247,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--sand);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;}
+nav.desktop-nav{display:flex;gap:18px;padding:10px 20px;border-bottom:1px solid var(--sand);overflow-x:auto;font-size:12px;font-weight:600;}
+nav.desktop-nav button{background:none;border:none;color:var(--warmgray);padding-bottom:6px;white-space:nowrap;}
+nav.desktop-nav button.active{color:var(--charcoal);border-bottom:2px solid var(--charcoal);}
+main{max-width:1100px;margin:0 auto;padding:16px;}
+.mobile-nav{display:none;}
+@media(max-width:760px){
+  nav.desktop-nav{display:none;}
+  .mobile-nav{display:flex;position:fixed;bottom:0;left:0;right:0;background:rgba(253,251,247,.97);border-top:1px solid var(--sand);z-index:40;overflow-x:auto;}
+  .mobile-nav button{flex:0 0 auto;background:none;border:none;font-size:9px;color:var(--warmgray);padding:8px 10px;display:flex;flex-direction:column;align-items:center;gap:2px;min-width:58px;}
+  .mobile-nav button.active{color:var(--charcoal);}
+  .mobile-nav .icon{font-size:17px;}
+}
+#more-drawer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--sand);border-radius:16px 16px 0 0;z-index:50;padding:16px;display:none;box-shadow:0 -10px 40px rgba(0,0,0,.15);}
+#more-overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:49;display:none;}
+.pin-screen,.onboard-screen{position:fixed;inset:0;background:var(--cream);z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:20px;text-align:center;}
+.pin-dots{display:flex;gap:12px;margin:20px 0;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--sand);}
+.pin-dot.filled{background:var(--charcoal);border-color:var(--charcoal);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,64px);gap:10px;}
+.pin-pad button{width:64px;height:64px;border-radius:50%;border:1px solid var(--sand);background:#fff;font-size:20px;}
+.thumb{object-fit:cover;border-radius:6px;border:1px solid var(--sand);}
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px;}
+.sync-ok{background:var(--sage);} .sync-err{background:#dc2626;} .sync-idle{background:var(--warmgray);}
+</style>
+</head>
+<body>
+
+<!-- ÉCRAN PIN -->
+<div class="pin-screen hidden" id="pin-screen">
+  <h2 class="serif" style="font-size:22px;">Dear San'el</h2>
+  <p class="muted" id="pin-screen-label" style="font-size:12px;margin-top:6px;">Entre ton code PIN</p>
+  <div class="pin-dots" id="pin-dots"></div>
+  <div class="pin-pad" id="pin-pad"></div>
+  <p id="pin-error" class="hidden" style="color:#dc2626;font-size:12px;margin-top:10px;">Code incorrect, réessaie.</p>
+</div>
+
+<!-- ÉCRAN D'ACCUEIL / ONBOARDING -->
+<div class="onboard-screen hidden" id="onboard-screen">
+  <h1 class="serif" style="font-size:26px;">Dear San'el</h1>
+  <p class="muted" style="max-width:340px;font-size:13px;margin:14px 0 22px;">
+    Nouvel appareil détecté. Récupère tes données existantes avec ton code de synchronisation,
+    ou démarre avec le catalogue de départ.
+  </p>
+  <div class="card p4" style="max-width:340px;width:100%;margin-bottom:14px;">
+    <label class="lbl">Code de synchronisation</label>
+    <input type="text" id="onboard-sync-code" class="input" placeholder="Ex: DSANEL2026" style="text-transform:uppercase;">
+    <button class="btn btn-dark" style="width:100%;margin-top:10px;" onclick="onboardRecoverFromSync()">Récupérer mes données</button>
+  </div>
+  <button class="btn btn-outline" onclick="onboardStartFresh()">Démarrer avec le catalogue existant (54 articles)</button>
+</div>
+
+<!-- MODALE -->
+<div id="modal-overlay"><div id="modal-box"></div></div>
+
+<!-- MENU "PLUS" MOBILE -->
+<div id="more-overlay" onclick="closeMoreDrawer()"></div>
+<div id="more-drawer"></div>
+
+<div id="app-root" class="hidden">
+
+<header class="top-header">
+  <div>
+    <h1 class="serif" style="font-size:19px;">Dear San'el</h1>
+    <p class="muted" style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-top:2px;">Atelier · Boutiques · Rentabilité</p>
+  </div>
+  <div class="flex center gap-2">
+    <span id="sync-indicator" style="font-size:10px;" class="muted"><span class="sync-dot sync-idle"></span>Local</span>
+  </div>
+</header>
+
+<nav class="desktop-nav" id="desktop-nav"></nav>
+
+<main id="main-content"></main>
+
+<nav class="mobile-nav" id="mobile-nav"></nav>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ===================== CONFIG SUPABASE (REST direct, sans supabase-js) =====================
+const SB_URL = "https://foboghwbppqbyvfcjkoj.supabase.co";
+const SB_KEY = "sb_publishable_qh12xNgNAnoVTLhaUL8g6A_absINt8r";
+const SB_TABLE = "dearsanel_app_data";
+const FETCH_TIMEOUT_MS = 6000;
+
+function uuid() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+function nowTs() { return Date.now(); }
+function fmt(n) { return Math.round(n || 0).toLocaleString('fr-FR') + ' FCFA'; }
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function fetchWithTimeout(url, options) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    return fetch(url, Object.assign({}, options, { signal: controller.signal }))
+        .finally(() => clearTimeout(id));
+}
+
+// ===================== DONNÉES DE DÉPART (54 articles réels) =====================
+const SEED_DATA = {"categories": [{"id": "a0672736-45c3-4b63-a99b-f9162614ae1e", "name": "Sacs à main", "_ts": 1788737146145, "deleted": false}, {"id": "716f216f-cb67-435d-9c21-1c4e715c087a", "name": "Bracelets", "_ts": 1788737146145, "deleted": false}, {"id": "0827e67a-b157-4efc-8f2d-a2bf13d51db7", "name": "Parures", "_ts": 1788737146145, "deleted": false}, {"id": "63391808-3251-4c00-b068-72bc7c6ea6fd", "name": "Serre-tête", "_ts": 1788737146145, "deleted": false}, {"id": "90a1172c-bdde-4837-a1eb-ee30a815e2dc", "name": "Objets Déco", "_ts": 1788737146145, "deleted": false}, {"id": "a5733bb5-f780-4e39-8655-4ab5dfe641f3", "name": "Chapeaux", "_ts": 1788737146145, "deleted": false}, {"id": "ce66589b-92df-4257-b113-d354e7ebe87a", "name": "Robes", "_ts": 1788737146145, "deleted": false}, {"id": "8084125a-3560-4a21-80b4-7751554369ea", "name": "Vêtements", "_ts": 1788737146145, "deleted": false}, {"id": "1b14421b-3eb6-406e-bd5d-a832b1358e43", "name": "Accessoires", "_ts": 1788737146145, "deleted": false}], "locations": [{"id": "150bdcb8-3ae6-4bc7-a5a4-fe22acf45316", "name": "Atelier Maison", "type": "atelier_central", "commissionPct": 0, "isSellable": true, "_ts": 1788737146145, "deleted": false}, {"id": "f9d10fce-8f42-47a9-9886-c4db738d4ec4", "name": "Stock Réserve Web", "type": "reserve_web", "commissionPct": 0, "isSellable": true, "_ts": 1788737146145, "deleted": false}, {"id": "eb0bdd56-2257-427d-809d-76e83c445935", "name": "Hilton - Les 7 Collines", "type": "depot_boutique", "commissionPct": 30, "isSellable": true, "_ts": 1788737146145, "deleted": false}, {"id": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "name": "Villa Allemande - Boutique Éphémère", "type": "depot_boutique", "commissionPct": 30, "isSellable": true, "_ts": 1788737146145, "deleted": false}], "products": [{"id": "ff6aecd7-bdf7-476e-8264-f912604f0a83", "ref": "CREA-001", "name": "Sac fleur noir", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 70000, "costItems": [], "recipe": [], "createdAt": "2025-12-02", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "312346eb-c272-4a4a-adcc-2bd2cd2649cd", "ref": "CREA-002", "name": "Sac fleur rose fushia", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 50000, "costItems": [], "recipe": [], "createdAt": "2025-12-02", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "4f5a7070-486e-4763-9592-eb57dd1eee1b", "ref": "CREA-003", "name": "Sac fleur orange", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 40000, "costItems": [], "recipe": [], "createdAt": "2025-12-02", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "5046abf1-c489-4c18-bc3b-b40f9facbd16", "ref": "CREA-004", "name": "Sac fleur GRIS", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 45000, "costItems": [], "recipe": [], "createdAt": "2025-12-02", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "2993d75e-e81d-49c4-9ac1-717e4a222b91", "ref": "CREA-005", "name": "Sac fleur Rose Lustré", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 35000, "costItems": [], "recipe": [], "createdAt": "2025-12-02", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "2072e1d0-65d4-41ab-b746-ac546f5a8b0c", "ref": "CREA-006", "name": "Sac cabas multicolor", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 60000, "costItems": [], "recipe": [], "createdAt": "2025-09-26", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "dc34bffb-d2c3-4399-87cf-15626607fb93", "ref": "CREA-007", "name": "Sac fleur Noir M", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 35000, "costItems": [], "recipe": [], "createdAt": "2025-04-02", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "23bb7014-7bad-4302-8bfe-58d656c772ce", "ref": "CREA-008", "name": "Sac Fleur Rouge", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 25000, "costItems": [], "recipe": [], "createdAt": "2025-04-02", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "3b3c0044-b4d6-4109-b8e8-e49271574b64", "ref": "CREA-009", "name": "Cabas Orange Et Gris", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 25000, "costItems": [], "recipe": [], "createdAt": "2025-06-14", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "11191f6a-e8d1-4029-b2b2-9459d3eb61e2", "ref": "CREA-010", "name": "Pochette Demi-lune Avec Cauris", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 45000, "costItems": [], "recipe": [], "createdAt": "2025-06-14", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "2c87d0d0-557b-4496-b53c-145980427d3f", "ref": "CREA-011", "name": "Pochette Demi-lune Anses En Bois", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 40000, "costItems": [], "recipe": [], "createdAt": "2025-06-14", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "461f9300-ecb8-46f9-89bd-1b65fc069025", "ref": "CREA-012", "name": "Pochette Blanc Lustré", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 30000, "costItems": [], "recipe": [], "createdAt": "2025-06-14", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "0b7771c1-3bbb-484f-9752-7e33fa06454c", "ref": "CREA-013", "name": "Sac Houndstooth Chic", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 100000, "costItems": [], "recipe": [], "createdAt": "2026-04-04", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "786f6ba6-8e87-461a-9e78-5c12076a4c69", "ref": "CREA-014", "name": "Sac Héritage Floral", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 70000, "costItems": [], "recipe": [], "createdAt": "2026-04-04", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "9f283b8c-a3d9-444f-88e8-da7c03784918", "ref": "CREA-015", "name": "Bracelets Fil Nylon", "categoryId": "716f216f-cb67-435d-9c21-1c4e715c087a", "image": "", "pricePublic": 2500, "costItems": [], "recipe": [], "createdAt": "2025-09-26", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "eb3b0b31-6053-49d1-a1e2-f24004f98977", "ref": "CREA-016", "name": "Bracelets En Laine Lustrée", "categoryId": "716f216f-cb67-435d-9c21-1c4e715c087a", "image": "", "pricePublic": 3000, "costItems": [], "recipe": [], "createdAt": "2025-09-26", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "3e27eabe-0d3c-4234-bca4-c52458f188ca", "ref": "CREA-017", "name": "Bracelets Fibre De Bananier", "categoryId": "716f216f-cb67-435d-9c21-1c4e715c087a", "image": "", "pricePublic": 3500, "costItems": [], "recipe": [], "createdAt": "2025-09-26", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "68fb11a3-d746-44cb-ad6b-81099a62c878", "ref": "CREA-018", "name": "Bracelets Fibre De Bananier XL", "categoryId": "716f216f-cb67-435d-9c21-1c4e715c087a", "image": "", "pricePublic": 7000, "costItems": [], "recipe": [], "createdAt": "2025-06-14", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "01682e65-2e7a-4bd7-926e-28882d34610a", "ref": "CREA-019", "name": "Parures Perles NB", "categoryId": "0827e67a-b157-4efc-8f2d-a2bf13d51db7", "image": "", "pricePublic": 22857, "costItems": [], "recipe": [], "createdAt": "2025-09-26", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "c448fc13-64c7-463d-9389-4c4a1d5387d9", "ref": "CREA-020", "name": "Parures Perles Colorées", "categoryId": "0827e67a-b157-4efc-8f2d-a2bf13d51db7", "image": "", "pricePublic": 12500, "costItems": [], "recipe": [], "createdAt": "2025-09-26", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "fc6d9f94-86ae-450c-b76d-0a5f4769d105", "ref": "CREA-021", "name": "Serre-tête Fibre De Bananier", "categoryId": "63391808-3251-4c00-b068-72bc7c6ea6fd", "image": "", "pricePublic": 5000, "costItems": [], "recipe": [], "createdAt": "2025-09-26", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "bb7ea2c1-0826-44b0-ad34-8914ce3ab238", "ref": "CREA-022", "name": "Dessous De Plat Fibre De Bananier", "categoryId": "90a1172c-bdde-4837-a1eb-ee30a815e2dc", "image": "", "pricePublic": 9429, "costItems": [], "recipe": [], "createdAt": "2025-04-02", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "d3f53cf1-03ac-421f-8a6c-313f8aa7ea75", "ref": "CREA-023", "name": "Dessous De Verre Fibre De Bananier", "categoryId": "90a1172c-bdde-4837-a1eb-ee30a815e2dc", "image": "", "pricePublic": 2500, "costItems": [], "recipe": [], "createdAt": "2025-04-02", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "ffb2fd70-8504-454c-b4c1-d2d49eeb3a54", "ref": "CREA-024", "name": "Chapeau Damier Vert", "categoryId": "a5733bb5-f780-4e39-8655-4ab5dfe641f3", "image": "", "pricePublic": 15000, "costItems": [], "recipe": [], "createdAt": "2025-06-14", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "888324a8-f135-413e-8d8a-a9e4dcf244b7", "ref": "CREA-025", "name": "Chapeau À Volant Rouge", "categoryId": "a5733bb5-f780-4e39-8655-4ab5dfe641f3", "image": "", "pricePublic": 17000, "costItems": [], "recipe": [], "createdAt": "2025-06-14", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "bf395ef0-5536-4719-b87a-86552f59cedc", "ref": "CREA-026", "name": "Chapeau À Volants Vert Et Blanc", "categoryId": "a5733bb5-f780-4e39-8655-4ab5dfe641f3", "image": "", "pricePublic": 15000, "costItems": [], "recipe": [], "createdAt": "2025-06-14", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "4268718b-a05e-43af-8d0a-e4e063a35603", "ref": "CREA-027", "name": "Bérets", "categoryId": "a5733bb5-f780-4e39-8655-4ab5dfe641f3", "image": "", "pricePublic": 10000, "costItems": [], "recipe": [], "createdAt": "2026-04-04", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "58fc92d4-9d55-49f8-aee9-a5d53f49d9f7", "ref": "CREA-028", "name": "Robe Signature", "categoryId": "ce66589b-92df-4257-b113-d354e7ebe87a", "image": "", "pricePublic": 100000, "costItems": [], "recipe": [], "createdAt": "2026-04-04", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "dab23253-bcab-4ab1-aa38-825ce28555e7", "ref": "CREA-029", "name": "Robe Horizon De Mailles", "categoryId": "ce66589b-92df-4257-b113-d354e7ebe87a", "image": "", "pricePublic": 70000, "costItems": [], "recipe": [], "createdAt": "2026-04-04", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "74c1e60a-0af7-4212-9828-46b32bf2011e", "ref": "CREA-030", "name": "Robe Houndstooth Chichigan", "categoryId": "ce66589b-92df-4257-b113-d354e7ebe87a", "image": "", "pricePublic": 100000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "c2d97ee7-1eb4-4120-bd1b-acf8b9bf8862", "ref": "CREA-031", "name": "Robe Horizon de mailles", "categoryId": "ce66589b-92df-4257-b113-d354e7ebe87a", "image": "", "pricePublic": 70000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "c1b7d6dd-ce50-425f-8bb5-64ccbcd96d0a", "ref": "CREA-032", "name": "Sac pied de poule", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 100000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "30883c48-7ef0-48e5-aab4-3064b999bf0c", "ref": "CREA-033", "name": "Chemise Harmattan gris", "categoryId": "8084125a-3560-4a21-80b4-7751554369ea", "image": "", "pricePublic": 0, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "20ede55c-7691-4368-8d3b-50e171e6cf0c", "ref": "CREA-034", "name": "Chemise Harmattan prune", "categoryId": "8084125a-3560-4a21-80b4-7751554369ea", "image": "", "pricePublic": 0, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "fd388ad4-1bdc-4a02-9751-c8aa63265625", "ref": "CREA-035", "name": "Chemise grise", "categoryId": "8084125a-3560-4a21-80b4-7751554369ea", "image": "", "pricePublic": 0, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "05e12169-3c85-4a6b-afdc-d5795f8e3c40", "ref": "CREA-036", "name": "Sac Héritage floral au crochet (vert)", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 40000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "c97218aa-b6c5-4506-8bf6-692132753f55", "ref": "CREA-037", "name": "Sac Héritage floral au crochet (bleu)", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 70000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "a8a16121-0296-49b1-8af2-051d3da6387a", "ref": "CREA-038", "name": "Sac Héritage floral au crochet (blanc)", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 70000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "e714283c-977a-47ba-8b49-b1bb5e8036b6", "ref": "CREA-039", "name": "Fil clair femme", "categoryId": "8084125a-3560-4a21-80b4-7751554369ea", "image": "", "pricePublic": 60000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "8c53dc1d-ba7c-4bf8-9533-86c276c86d90", "ref": "CREA-040", "name": "Robe Essentiel", "categoryId": "ce66589b-92df-4257-b113-d354e7ebe87a", "image": "", "pricePublic": 0, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "a4fd6648-11e2-4733-8981-e1c7fa3dd30d", "ref": "CREA-041", "name": "Peplum azur", "categoryId": "8084125a-3560-4a21-80b4-7751554369ea", "image": "", "pricePublic": 0, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "d189a4e3-48e0-4e31-8e31-410ec397ff05", "ref": "CREA-042", "name": "Peplum bordeaux noir", "categoryId": "8084125a-3560-4a21-80b4-7751554369ea", "image": "", "pricePublic": 0, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "4cb890a2-277c-4315-a7a3-2eaaf8231271", "ref": "CREA-043", "name": "Haut dentelle", "categoryId": "8084125a-3560-4a21-80b4-7751554369ea", "image": "", "pricePublic": 0, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "e7cc5d3d-e676-4fa0-8b40-62d63b5cc6b6", "ref": "CREA-044", "name": "Bracelets fibre de bananier", "categoryId": "716f216f-cb67-435d-9c21-1c4e715c087a", "image": "", "pricePublic": 0, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "c58891ce-8d96-4000-bb9a-2a81317349be", "ref": "CREA-045", "name": "Boucles d'oreilles (5 000 FCFA)", "categoryId": "1b14421b-3eb6-406e-bd5d-a832b1358e43", "image": "", "pricePublic": 5000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "47d4b20c-e6c0-4b92-a561-8f5db383fbdf", "ref": "CREA-046", "name": "Boucles d'oreilles (4 000 FCFA)", "categoryId": "1b14421b-3eb6-406e-bd5d-a832b1358e43", "image": "", "pricePublic": 4000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "fc3b005d-15ba-4120-872b-adfa4327e574", "ref": "CREA-047", "name": "Boucles d'oreilles (3 000 FCFA)", "categoryId": "1b14421b-3eb6-406e-bd5d-a832b1358e43", "image": "", "pricePublic": 3000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "a1255a23-a977-4a95-b63a-9a1dfb87709c", "ref": "CREA-048", "name": "Boucles d'oreilles (2 000 FCFA)", "categoryId": "1b14421b-3eb6-406e-bd5d-a832b1358e43", "image": "", "pricePublic": 2000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "148f1208-d56c-48e2-92d0-6485bdd49334", "ref": "CREA-049", "name": "Rose laissée à Dame", "categoryId": "1b14421b-3eb6-406e-bd5d-a832b1358e43", "image": "", "pricePublic": 3000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "757851ca-d146-4fc5-984a-9c63d6e15b59", "ref": "CREA-050", "name": "Sac Cabas à Diane", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 45000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "427645d1-50cb-4a62-b298-125d110d6161", "ref": "CREA-051", "name": "Sac à franges rose gris", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 40000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "14aafe6c-a575-46f6-baf4-7618271cc022", "ref": "CREA-052", "name": "Sac à franges chiné", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 30000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "030469e2-47a1-4025-b588-3d601385be80", "ref": "CREA-053", "name": "Pochette tablette", "categoryId": "1b14421b-3eb6-406e-bd5d-a832b1358e43", "image": "", "pricePublic": 15000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}, {"id": "50c9e3ae-8e90-40a1-b3ef-72dc79e2505b", "ref": "CREA-054", "name": "Mini-sac", "categoryId": "a0672736-45c3-4b63-a99b-f9162614ae1e", "image": "", "pricePublic": 30000, "costItems": [], "recipe": [], "createdAt": "2026-09-06", "isActive": true, "_ts": 1788737146145, "deleted": false}], "stockEntries": [{"id": "a45a8023-9a58-4ce7-9704-eb23df425f15", "productId": "ff6aecd7-bdf7-476e-8264-f912604f0a83", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 1, "qtyReturned": 0, "qtyPaid": 1, "depositDate": "2025-12-02", "source": "production_interne", "notes": "Vendu à 70000 frs | 02.12.2025", "_ts": 1788737146145, "deleted": false}, {"id": "1af254f6-9a3e-42c8-b347-4f21772630dd", "productId": "312346eb-c272-4a4a-adcc-2bd2cd2649cd", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 1, "qtyReturned": 0, "qtyPaid": 1, "depositDate": "2025-12-02", "source": "production_interne", "notes": "Vendu à 50000  | 02.12.2025", "_ts": 1788737146145, "deleted": false}, {"id": "6cc39f79-c0d7-45b0-8d34-18181fba114f", "productId": "4f5a7070-486e-4763-9592-eb57dd1eee1b", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-12-02", "source": "production_interne", "notes": "40000 frs | 02.12.2025", "_ts": 1788737146145, "deleted": false}, {"id": "2f04600c-d886-46df-bb7d-b9ac9bbf1720", "productId": "5046abf1-c489-4c18-bc3b-b40f9facbd16", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-12-02", "source": "production_interne", "notes": "45000 | 02.12.2025", "_ts": 1788737146145, "deleted": false}, {"id": "a65f9905-b2f7-4251-a643-0d16a085ab7d", "productId": "2993d75e-e81d-49c4-9ac1-717e4a222b91", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-12-02", "source": "production_interne", "notes": "35000 - 30000 accepté  | 02.12.2025", "_ts": 1788737146145, "deleted": false}, {"id": "bf2a01bb-f11b-46b1-9fbd-56be14f61c39", "productId": "2072e1d0-65d4-41ab-b746-ac546f5a8b0c", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-09-26", "source": "production_interne", "notes": "60000 | 26.09.2025", "_ts": 1788737146145, "deleted": false}, {"id": "a8176055-3314-4731-9f3d-4e697af369d9", "productId": "dc34bffb-d2c3-4399-87cf-15626607fb93", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-04-02", "source": "production_interne", "notes": "35000 | 02.04.2025", "_ts": 1788737146145, "deleted": false}, {"id": "b7b77f22-95a4-46fc-adfb-954bef88d91b", "productId": "23bb7014-7bad-4302-8bfe-58d656c772ce", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-04-02", "source": "production_interne", "notes": "25000 | 02.04.2025  | Penser à le récupérer pour la cliente de Francine", "_ts": 1788737146145, "deleted": false}, {"id": "04e159d9-0806-41b2-9398-64a8abfe70f1", "productId": "3b3c0044-b4d6-4109-b8e8-e49271574b64", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 1, "qtyReturned": 0, "qtyPaid": 1, "depositDate": "2025-06-14", "source": "production_interne", "notes": "25000 | 14.06.2025", "_ts": 1788737146145, "deleted": false}, {"id": "d7c4a5d8-f4d7-410b-907b-400a6e1102ca", "productId": "11191f6a-e8d1-4029-b2b2-9459d3eb61e2", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-06-14", "source": "production_interne", "notes": "45000 | 14.06.2025", "_ts": 1788737146145, "deleted": false}, {"id": "750aa9e5-f4a1-4fa3-8236-7c18f0c62052", "productId": "2c87d0d0-557b-4496-b53c-145980427d3f", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-06-14", "source": "production_interne", "notes": "40000 | 14.06.2025", "_ts": 1788737146145, "deleted": false}, {"id": "c857a7a6-7fe3-4df5-b3ec-db503f9ee277", "productId": "461f9300-ecb8-46f9-89bd-1b65fc069025", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-06-14", "source": "production_interne", "notes": "30000 | 14.06.2025", "_ts": 1788737146145, "deleted": false}, {"id": "ba9f69e5-bb20-47b6-b9ed-b20e8ed6f3d9", "productId": "0b7771c1-3bbb-484f-9752-7e33fa06454c", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-04-04", "source": "production_interne", "notes": "04.04.2026 100000", "_ts": 1788737146145, "deleted": false}, {"id": "814e698a-b3ba-48a6-a146-711923b85524", "productId": "786f6ba6-8e87-461a-9e78-5c12076a4c69", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-04-04", "source": "production_interne", "notes": "04.04.2026 70000", "_ts": 1788737146145, "deleted": false}, {"id": "399de623-2dc5-4a0b-94d9-78ec3f3bbf36", "productId": "9f283b8c-a3d9-444f-88e8-da7c03784918", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 10, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-09-26", "source": "production_interne", "notes": "2500 | 26.09.2025", "_ts": 1788737146145, "deleted": false}, {"id": "bc3040c4-4ec0-4ac2-9a28-dbe93e63f700", "productId": "eb3b0b31-6053-49d1-a1e2-f24004f98977", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 2, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-09-26", "source": "production_interne", "notes": "3000 | 26.09.2025", "_ts": 1788737146145, "deleted": false}, {"id": "d864a59c-7557-42ea-bd88-3428c6b5b3e5", "productId": "3e27eabe-0d3c-4234-bca4-c52458f188ca", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 3, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-09-26", "source": "production_interne", "notes": "3500 | 26.09.2025", "_ts": 1788737146145, "deleted": false}, {"id": "b2d712cd-b4ed-4556-8180-79c9eb971ac4", "productId": "68fb11a3-d746-44cb-ad6b-81099a62c878", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 5, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-06-14", "source": "production_interne", "notes": "7000 | 2 laissés le 14.06.2025  | 3 déposés le 26.09.2025  | Grande taille", "_ts": 1788737146145, "deleted": false}, {"id": "e1e7719c-cc1b-4d58-b1fe-4784bfe6d3c6", "productId": "01682e65-2e7a-4bd7-926e-28882d34610a", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-09-26", "source": "production_interne", "notes": "20000 | 26.09.2025  | Collier 7500 | Bracelet 7500 | Boucles 5000", "_ts": 1788737146145, "deleted": false}, {"id": "8cd855a8-b10e-4190-aa91-98bba35d707e", "productId": "c448fc13-64c7-463d-9389-4c4a1d5387d9", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-09-26", "source": "production_interne", "notes": "12500 | 26.09.2025  | Collier 7500 | Boucles 5000", "_ts": 1788737146145, "deleted": false}, {"id": "ae65ebf5-2a6a-42de-a51f-58ad61dedcef", "productId": "fc6d9f94-86ae-450c-b76d-0a5f4769d105", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 2, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-09-26", "source": "production_interne", "notes": "5000 | 26.09.2025", "_ts": 1788737146145, "deleted": false}, {"id": "097bf32f-951c-487e-a128-b512cd905e4b", "productId": "bb7ea2c1-0826-44b0-ad34-8914ce3ab238", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 6, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-04-02", "source": "production_interne", "notes": "8000 | 02.04.2025 | Déposé 2 puis 4 ajoutés", "_ts": 1788737146145, "deleted": false}, {"id": "f153d406-7580-46c1-97d3-24ceb1d7937b", "productId": "d3f53cf1-03ac-421f-8a6c-313f8aa7ea75", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 6, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-04-02", "source": "production_interne", "notes": "2500 | 02.04.2025", "_ts": 1788737146145, "deleted": false}, {"id": "20988fd0-1396-4e03-adb0-ca9d4b80a849", "productId": "ffb2fd70-8504-454c-b4c1-d2d49eeb3a54", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-06-14", "source": "production_interne", "notes": "15000 | 14.06.2025", "_ts": 1788737146145, "deleted": false}, {"id": "ae8f5f3b-8543-4ef8-a43e-9d10240b34d3", "productId": "888324a8-f135-413e-8d8a-a9e4dcf244b7", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-06-14", "source": "production_interne", "notes": "17000 | 14.06.2025", "_ts": 1788737146145, "deleted": false}, {"id": "3adf51b8-108a-4284-9d03-93bd90547a6e", "productId": "bf395ef0-5536-4719-b87a-86552f59cedc", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2025-06-14", "source": "production_interne", "notes": "15000 | 14.06.2025", "_ts": 1788737146145, "deleted": false}, {"id": "b68a3685-ca65-4e24-ae3b-ea7247cc9ece", "productId": "4268718b-a05e-43af-8d0a-e4e063a35603", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 2, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-04-04", "source": "production_interne", "notes": "04.04.2026 10000 blanc et bleu", "_ts": 1788737146145, "deleted": false}, {"id": "6ebe19bc-154b-40e7-b422-500904587c33", "productId": "58fc92d4-9d55-49f8-aee9-a5d53f49d9f7", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 1, "qtyReturned": 0, "qtyPaid": 1, "depositDate": "2026-04-04", "source": "production_interne", "notes": "04.04.2026 vendu à 100000", "_ts": 1788737146145, "deleted": false}, {"id": "e569c924-a23e-4777-89b1-6847938a9ff8", "productId": "dab23253-bcab-4ab1-aa38-825ce28555e7", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qtyDeposited": 1, "qtySold": 1, "qtyReturned": 0, "qtyPaid": 1, "depositDate": "2026-04-04", "source": "production_interne", "notes": "Vendu à 70000 04.04.2026", "_ts": 1788737146145, "deleted": false}, {"id": "aa35b3c7-3986-4a83-90c7-358b214bb349", "productId": "74c1e60a-0af7-4212-9828-46b32bf2011e", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1 - Prix Net 70 000 FCFA", "_ts": 1788737146145, "deleted": false}, {"id": "180a130d-5326-4ac4-8bc2-57da2ed9dcb4", "productId": "c2d97ee7-1eb4-4120-bd1b-acf8b9bf8862", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1 - Prix Net 49 000 FCFA", "_ts": 1788737146145, "deleted": false}, {"id": "c9adada2-a488-43c1-9131-d5c7046815f4", "productId": "c1b7d6dd-ce50-425f-8bb5-64ccbcd96d0a", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1 - Prix Net 70 000 FCFA", "_ts": 1788737146145, "deleted": false}, {"id": "45a95ab1-6676-4cc3-8c46-599d9e222fe9", "productId": "30883c48-7ef0-48e5-aab4-3064b999bf0c", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "78ccdedb-763d-4813-81ca-ee816912d382", "productId": "20ede55c-7691-4368-8d3b-50e171e6cf0c", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "48fd1fa1-87c3-43f5-b48d-508b97fb0c97", "productId": "fd388ad4-1bdc-4a02-9751-c8aa63265625", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "41865093-188c-4dd5-a71e-0a3d92754bec", "productId": "05e12169-3c85-4a6b-afdc-d5795f8e3c40", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "e37dc04e-6977-4f5c-8ca7-4b07db6bcfac", "productId": "c97218aa-b6c5-4506-8bf6-692132753f55", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "2e22a118-5a84-4270-b7ec-7149bb743aea", "productId": "a8a16121-0296-49b1-8af2-051d3da6387a", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "8b756264-32f1-44f3-9192-e7c9855538d6", "productId": "e714283c-977a-47ba-8b49-b1bb5e8036b6", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "ac888534-efa1-453f-a28d-1a75cf2d3aef", "productId": "8c53dc1d-ba7c-4bf8-9533-86c276c86d90", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "0319d1a6-c825-4dfc-b7c4-bc6c8ddafeca", "productId": "a4fd6648-11e2-4733-8981-e1c7fa3dd30d", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "6eb6fd58-4bfb-4272-8bb9-5b140be7b668", "productId": "d189a4e3-48e0-4e31-8e31-410ec397ff05", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "cc339c2a-c776-4c14-b5f2-c1233a75ea12", "productId": "4cb890a2-277c-4315-a7a3-2eaaf8231271", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "12859555-afec-4f50-807c-f70a7a143eee", "productId": "e7cc5d3d-e676-4fa0-8b40-62d63b5cc6b6", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 2, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1 - Lot de 2", "_ts": 1788737146145, "deleted": false}, {"id": "7ae1bd7d-2e3f-4793-89e9-a84bab48d7c4", "productId": "c58891ce-8d96-4000-bb9a-2a81317349be", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 3, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1 - Lot de 3", "_ts": 1788737146145, "deleted": false}, {"id": "78d9460c-7fa4-41cd-8806-681c7488fc3d", "productId": "47d4b20c-e6c0-4b92-a561-8f5db383fbdf", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 2, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1 - Lot de 2", "_ts": 1788737146145, "deleted": false}, {"id": "8dd5f99b-a134-434f-901d-971f93ff7852", "productId": "fc3b005d-15ba-4120-872b-adfa4327e574", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 4, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1 - Lot de 4", "_ts": 1788737146145, "deleted": false}, {"id": "ef019868-ce19-4133-96e2-5777fb53d7cd", "productId": "a1255a23-a977-4a95-b63a-9a1dfb87709c", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1 - 1 pce", "_ts": 1788737146145, "deleted": false}, {"id": "8baa4dc7-3212-4f2b-be3b-6cec3c43cced", "productId": "148f1208-d56c-48e2-92d0-6485bdd49334", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "27473b34-28ad-4453-b24f-e8c00fd04729", "productId": "757851ca-d146-4fc5-984a-9c63d6e15b59", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "4da4be84-6401-4017-9f92-5113fbff26e1", "productId": "427645d1-50cb-4a62-b298-125d110d6161", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "7ac39cfc-e8aa-4cde-b718-ca3d991bc0a5", "productId": "14aafe6c-a575-46f6-baf4-7618271cc022", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Carnet p.1", "_ts": 1788737146145, "deleted": false}, {"id": "912e2708-762c-400d-87b1-f6e5af388113", "productId": "030469e2-47a1-4025-b588-3d601385be80", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Ajouté selon message", "_ts": 1788737146145, "deleted": false}, {"id": "b3542cb6-6813-4619-b18d-fae1dba9afa5", "productId": "50c9e3ae-8e90-40a1-b3ef-72dc79e2505b", "locationId": "14102ed5-b807-40a9-a2b4-9ab8bfc28479", "qtyDeposited": 1, "qtySold": 0, "qtyReturned": 0, "qtyPaid": 0, "depositDate": "2026-09-06", "source": "production_interne", "notes": "Ajouté selon message", "_ts": 1788737146145, "deleted": false}], "sales": [{"id": "6de52b4f-a7f2-4378-bef4-298ce13cba2a", "stockEntryId": "a45a8023-9a58-4ce7-9704-eb23df425f15", "productId": "ff6aecd7-bdf7-476e-8264-f912604f0a83", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qty": 1, "unitPrice": 70000, "commissionPct": 30, "saleDate": "2025-12-02", "isPaid": true, "paidDate": "2025-12-02", "_ts": 1788737146145, "deleted": false}, {"id": "88b94756-4e9d-4e6c-be0a-cf1a034fef64", "stockEntryId": "1af254f6-9a3e-42c8-b347-4f21772630dd", "productId": "312346eb-c272-4a4a-adcc-2bd2cd2649cd", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qty": 1, "unitPrice": 50000, "commissionPct": 30, "saleDate": "2025-12-02", "isPaid": true, "paidDate": "2025-12-02", "_ts": 1788737146145, "deleted": false}, {"id": "3c3d4e9d-4988-48b9-86ce-3c45a238c884", "stockEntryId": "04e159d9-0806-41b2-9398-64a8abfe70f1", "productId": "3b3c0044-b4d6-4109-b8e8-e49271574b64", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qty": 1, "unitPrice": 25000, "commissionPct": 30, "saleDate": "2025-06-14", "isPaid": true, "paidDate": "2025-06-14", "_ts": 1788737146145, "deleted": false}, {"id": "58223f9e-7e02-4d2c-9000-0eac208e4cd7", "stockEntryId": "6ebe19bc-154b-40e7-b422-500904587c33", "productId": "58fc92d4-9d55-49f8-aee9-a5d53f49d9f7", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qty": 1, "unitPrice": 100000, "commissionPct": 30, "saleDate": "2026-04-04", "isPaid": true, "paidDate": "2026-04-04", "_ts": 1788737146145, "deleted": false}, {"id": "f3a361a0-0f0b-4d69-becd-80173f668a47", "stockEntryId": "e569c924-a23e-4777-89b1-6847938a9ff8", "productId": "dab23253-bcab-4ab1-aa38-825ce28555e7", "locationId": "eb0bdd56-2257-427d-809d-76e83c445935", "qty": 1, "unitPrice": 70000, "commissionPct": 30, "saleDate": "2026-04-04", "isPaid": true, "paidDate": "2026-04-04", "_ts": 1788737146145, "deleted": false}]};
+
+// ===================== ÉTAT DE L'APPLICATION =====================
+const LS_KEY = 'dearsanel_v5_state';
+const LS_META_KEY = 'dearsanel_v5_meta';
+
+function freshState() {
+    const ts = nowTs();
+    return {
+        categories: SEED_DATA.categories,
+        locations: SEED_DATA.locations,
+        materials: [],
+        products: SEED_DATA.products,
+        stockEntries: SEED_DATA.stockEntries,
+        sales: SEED_DATA.sales,
+        loans: [],
+        subcontractors: [],
+        subAdvances: [],
+        subOrders: [],
+        subOrderLines: [],
+        subReceptions: [],
+        suppliers: [],
+        shoppingItems: [],
+        marketingPosts: [],
+        marketingCaptions: [],
+        rdItems: [],
+        collections: [],
+        productCollections: [],
+        collectionInvestments: []
+    };
+}
+function emptyState() {
+    return {
+        categories: [], locations: [], materials: [], products: [], stockEntries: [],
+        sales: [], loans: [], subcontractors: [], subAdvances: [], subOrders: [],
+        subOrderLines: [], subReceptions: [], suppliers: [], shoppingItems: [],
+        marketingPosts: [], marketingCaptions: [], rdItems: [], collections: [],
+        productCollections: [], collectionInvestments: []
+    };
+}
+const COLLECTION_KEYS = Object.keys(emptyState());
+
+let appState = emptyState();
+let appMeta = { syncCode: '', pinHash: '', pinEnabled: false, lastSyncAt: null, deviceId: uuid() };
+
+function loadLocal() {
+    try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (raw) appState = Object.assign(emptyState(), JSON.parse(raw));
+    } catch (e) { console.error(e); }
+    try {
+        const rawMeta = localStorage.getItem(LS_META_KEY);
+        if (rawMeta) appMeta = Object.assign(appMeta, JSON.parse(rawMeta));
+    } catch (e) { console.error(e); }
+}
+function saveLocal() {
+    localStorage.setItem(LS_KEY, JSON.stringify(appState));
+    localStorage.setItem(LS_META_KEY, JSON.stringify(appMeta));
+}
+function hasAnyLocalData() {
+    return COLLECTION_KEYS.some(k => (appState[k] || []).length > 0);
+}
+
+// touch() : marque un enregistrement comme modifié maintenant (pour la fusion par horodatage)
+function touch(record) { record._ts = nowTs(); return record; }
+function newRecord(fields) { return Object.assign({ id: uuid(), _ts: nowTs(), deleted: false }, fields); }
+function softDelete(collectionKey, id) {
+    const item = (appState[collectionKey] || []).find(x => x.id === id);
+    if (item) { item.deleted = true; touch(item); }
+}
+function live(arr) { return (arr || []).filter(x => !x.deleted); }
+
+// ===================== FUSION DES DONNÉES (union par ID, le plus récent gagne) =====================
+function mergeCollection(localArr, remoteArr) {
+    const map = new Map();
+    (localArr || []).forEach(item => map.set(item.id, item));
+    (remoteArr || []).forEach(item => {
+        const existing = map.get(item.id);
+        if (!existing || (item._ts || 0) > (existing._ts || 0)) map.set(item.id, item);
+    });
+    return Array.from(map.values());
+}
+function mergeStates(localState, remoteState) {
+    const merged = emptyState();
+    COLLECTION_KEYS.forEach(key => {
+        merged[key] = mergeCollection(localState[key], remoteState && remoteState[key]);
+    });
+    return merged;
+}
+
+function setSyncIndicator(status, label) {
+    const el = document.getElementById('sync-indicator');
+    if (!el) return;
+    const dotClass = status === 'ok' ? 'sync-ok' : status === 'err' ? 'sync-err' : 'sync-idle';
+    el.innerHTML = `<span class="sync-dot ${dotClass}"></span>${label}`;
+}
+
+async function sbFetchRemote(code) {
+    const url = `${SB_URL}/rest/v1/${SB_TABLE}?sync_code=eq.${encodeURIComponent(code)}&select=payload,updated_at`;
+    const res = await fetchWithTimeout(url, {
+        headers: { apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}` }
+    });
+    if (!res.ok) throw new Error('Erreur de lecture Supabase: ' + res.status);
+    const rows = await res.json();
+    return rows && rows.length ? rows[0].payload : null;
+}
+async function sbPushState(code, state) {
+    const url = `${SB_URL}/rest/v1/${SB_TABLE}?on_conflict=sync_code`;
+    const res = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: {
+            apikey: SB_KEY, Authorization: `Bearer ${SB_KEY}`,
+            'Content-Type': 'application/json',
+            Prefer: 'resolution=merge-duplicates,return=minimal'
+        },
+        body: JSON.stringify([{ sync_code: code, payload: state, updated_at: new Date().toISOString() }])
+    });
+    if (!res.ok) throw new Error('Erreur d\'écriture Supabase: ' + res.status);
+}
+
+async function syncNow(showAlerts) {
+    if (!appMeta.syncCode) {
+        if (showAlerts) alert("Configure d'abord un code de synchronisation dans Paramètres.");
+        return;
+    }
+    setSyncIndicator('idle', 'Synchro...');
+    try {
+        const remote = await sbFetchRemote(appMeta.syncCode);
+        const merged = mergeStates(appState, remote);
+        appState = merged;
+        await sbPushState(appMeta.syncCode, merged);
+        appMeta.lastSyncAt = new Date().toISOString();
+        saveLocal();
+        renderAll();
+        setSyncIndicator('ok', 'Synchronisé ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
+        if (showAlerts) alert("Synchronisation réussie. Données fusionnées avec le cloud.");
+    } catch (e) {
+        console.error(e);
+        setSyncIndicator('err', 'Hors-ligne / échec');
+        if (showAlerts) alert("Synchronisation impossible pour le moment (réseau ou serveur). Tes données restent en sécurité sur cet appareil.");
+    }
+}
+async function forceReplaceRemote() {
+    if (!appMeta.syncCode) { alert("Configure d'abord un code de synchronisation."); return; }
+    if (!confirm("⚠️ Ceci va ÉCRASER les données du cloud avec celles de CET appareil, sans fusion. À utiliser uniquement pour nettoyer des doublons. Continuer ?")) return;
+    try {
+        await sbPushState(appMeta.syncCode, appState);
+        appMeta.lastSyncAt = new Date().toISOString();
+        saveLocal();
+        setSyncIndicator('ok', 'Cloud écrasé (forcé)');
+        alert("Le cloud a été remplacé par les données de cet appareil.");
+    } catch (e) {
+        alert("Échec : " + e.message);
+    }
+}
+async function forceReplaceLocal() {
+    if (!appMeta.syncCode) { alert("Configure d'abord un code de synchronisation."); return; }
+    if (!confirm("⚠️ Ceci va ÉCRASER les données de CET appareil avec celles du cloud, sans fusion. Continuer ?")) return;
+    try {
+        const remote = await sbFetchRemote(appMeta.syncCode);
+        if (!remote) { alert("Aucune donnée trouvée dans le cloud pour ce code."); return; }
+        appState = Object.assign(emptyState(), remote);
+        saveLocal();
+        renderAll();
+        setSyncIndicator('ok', 'Local écrasé (forcé)');
+        alert("Cet appareil a été remplacé par les données du cloud.");
+    } catch (e) {
+        alert("Échec : " + e.message);
+    }
+}
+
+// ===================== CODE PIN =====================
+async function sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+let pinBuffer = '';
+let pinResolveCallback = null;
+function renderPinPad() {
+    const pad = document.getElementById('pin-pad');
+    const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+    pad.innerHTML = keys.map(k => k ? `<button onclick="pinKeyPress('${k}')">${k}</button>` : `<span></span>`).join('');
+}
+function renderPinDots() {
+    const dots = document.getElementById('pin-dots');
+    dots.innerHTML = Array.from({length:4}).map((_,i) => `<span class="pin-dot ${i < pinBuffer.length ? 'filled' : ''}"></span>`).join('');
+}
+function pinKeyPress(k) {
+    if (k === '⌫') { pinBuffer = pinBuffer.slice(0, -1); renderPinDots(); return; }
+    if (pinBuffer.length >= 4) return;
+    pinBuffer += k;
+    renderPinDots();
+    if (pinBuffer.length === 4) checkPinEntry();
+}
+async function checkPinEntry() {
+    const hash = await sha256(pinBuffer);
+    if (hash === appMeta.pinHash) {
+        document.getElementById('pin-screen').classList.add('hidden');
+        pinBuffer = '';
+        if (pinResolveCallback) { pinResolveCallback(true); pinResolveCallback = null; }
+    } else {
+        document.getElementById('pin-error').classList.remove('hidden');
+        pinBuffer = '';
+        renderPinDots();
+        setTimeout(() => document.getElementById('pin-error').classList.add('hidden'), 1500);
+    }
+}
+function showPinScreen(label) {
+    document.getElementById('pin-screen-label').innerText = label || 'Entre ton code PIN';
+    document.getElementById('pin-screen').classList.remove('hidden');
+    pinBuffer = ''; renderPinPad(); renderPinDots();
+}
+function requirePinIfEnabled() {
+    return new Promise(resolve => {
+        if (!appMeta.pinEnabled || !appMeta.pinHash) { resolve(true); return; }
+        pinResolveCallback = resolve;
+        showPinScreen('Entre ton code PIN');
+    });
+}
+
+// ===================== ONBOARDING (nouvel appareil) =====================
+function shouldShowOnboarding() {
+    return !hasAnyLocalData() && !appMeta.syncCode;
+}
+function onboardStartFresh() {
+    appState = freshState();
+    saveLocal();
+    document.getElementById('onboard-screen').classList.add('hidden');
+    startApp();
+}
+async function onboardRecoverFromSync() {
+    const code = document.getElementById('onboard-sync-code').value.trim().toUpperCase();
+    if (!code) { alert("Entre un code de synchronisation."); return; }
+    appMeta.syncCode = code;
+    try {
+        const remote = await sbFetchRemote(code);
+        if (remote) {
+            appState = Object.assign(emptyState(), remote);
+        } else {
+            appState = freshState();
+            alert("Aucune donnée trouvée pour ce code — on démarre avec le catalogue existant, et ce code sera utilisé pour synchroniser désormais.");
+        }
+        saveLocal();
+        document.getElementById('onboard-screen').classList.add('hidden');
+        startApp();
+    } catch (e) {
+        alert("Impossible de contacter le serveur pour le moment. Vérifie ta connexion et réessaie, ou démarre avec le catalogue existant.");
+    }
+}
+
+// ===================== DÉMARRAGE =====================
+async function initApp() {
+    loadLocal();
+    if (shouldShowOnboarding()) {
+        document.getElementById('onboard-screen').classList.remove('hidden');
+        return;
+    }
+    const pinOk = await requirePinIfEnabled();
+    if (pinOk) startApp();
+}
+function startApp() {
+    document.getElementById('app-root').classList.remove('hidden');
+    renderNav();
+    navigate('dashboard');
+    renderAll();
+    if (appMeta.syncCode) syncNow(false);
+    window.addEventListener('online', () => { if (appMeta.syncCode) syncNow(false); });
+}
+window.addEventListener('load', initApp);
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+}
+
+// ===================== NAVIGATION =====================
+const PAGES = [
+    { id: 'dashboard', label: 'Tableau de Bord', icon: '🏠', mobilePrimary: true },
+    { id: 'catalogue', label: 'Catalogue', icon: '🏷️', mobilePrimary: true },
+    { id: 'depots', label: 'Dépôts & Ventes', icon: '📦', mobilePrimary: true },
+    { id: 'rapports', label: 'Rapports', icon: '📊', mobilePrimary: true },
+    { id: 'matieres', label: 'Matières & BOM', icon: '🧵' },
+    { id: 'couturiere', label: 'Sous-traitance', icon: '🪡' },
+    { id: 'courses', label: 'Fournisseurs & Courses', icon: '🛒' },
+    { id: 'marketing', label: 'Marketing', icon: '📅' },
+    { id: 'rd', label: 'Carnet R&D', icon: '💡' },
+    { id: 'parametres', label: 'Paramètres', icon: '⚙️' },
+    { id: 'aide', label: 'Comment utiliser ?', icon: '❓' }
+];
+let currentPage = 'dashboard';
+
+function renderNav() {
+    const desktop = document.getElementById('desktop-nav');
+    desktop.innerHTML = PAGES.map(p => `<button id="dnav-${p.id}" onclick="navigate('${p.id}')">${p.label}</button>`).join('');
+
+    const mobile = document.getElementById('mobile-nav');
+    const primary = PAGES.filter(p => p.mobilePrimary);
+    mobile.innerHTML = primary.map(p => `
+        <button id="mnav-${p.id}" onclick="navigate('${p.id}')"><span class="icon">${p.icon}</span><span>${p.label.split(' ')[0]}</span></button>
+    `).join('') + `<button onclick="openMoreDrawer()"><span class="icon">☰</span><span>Plus</span></button>`;
+}
+function openMoreDrawer() {
+    const rest = PAGES.filter(p => !p.mobilePrimary);
+    const drawer = document.getElementById('more-drawer');
+    drawer.innerHTML = `
+        <div style="width:36px;height:4px;background:var(--sand);border-radius:2px;margin:0 auto 14px;"></div>
+        <div class="grid g3" style="gap:10px;">
+        ${rest.map(p => `
+            <button onclick="navigate('${p.id}');closeMoreDrawer();" class="card p3" style="text-align:center;">
+                <div style="font-size:22px;">${p.icon}</div>
+                <div style="font-size:10px;margin-top:4px;">${p.label}</div>
+            </button>
+        `).join('')}
+        </div>
+    `;
+    drawer.style.display = 'block';
+    document.getElementById('more-overlay').style.display = 'block';
+}
+function closeMoreDrawer() {
+    document.getElementById('more-drawer').style.display = 'none';
+    document.getElementById('more-overlay').style.display = 'none';
+}
+function navigate(pageId) {
+    currentPage = pageId;
+    PAGES.forEach(p => {
+        const d = document.getElementById('dnav-' + p.id);
+        const m = document.getElementById('mnav-' + p.id);
+        if (d) d.classList.toggle('active', p.id === pageId);
+        if (m) m.classList.toggle('active', p.id === pageId);
+    });
+    renderPage(pageId);
+}
+function openModal(html) {
+    document.getElementById('modal-box').innerHTML = html;
+    document.getElementById('modal-overlay').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+// ===================== HELPERS MÉTIER =====================
+function getCategory(id) { return appState.categories.find(c => c.id === id); }
+function getLocation(id) { return appState.locations.find(l => l.id === id); }
+function getProduct(id) { return appState.products.find(p => p.id === id); }
+function stockEntryStock(se) { return Math.max(0, (se.qtyDeposited || 0) - (se.qtySold || 0) - (se.qtyReturned || 0)); }
+function unpaidQtyOf(se) { return Math.max(0, (se.qtySold || 0) - (se.qtyPaid || 0)); }
+function priceNet(pricePublic, commissionPct) { return Math.round((pricePublic || 0) * (1 - (commissionPct || 0) / 100)); }
+function costPriceOf(product) {
+    if (!product) return 0;
+    let total = 0;
+    live(product.costItems).forEach(ci => total += (ci.quantity || 0) * (ci.unitRate || 0));
+    live(product.recipe).forEach(r => {
+        const mat = appState.materials.find(m => m.id === r.materialId);
+        if (mat) total += (r.qtyNeeded || 0) * (mat.unitPrice || 0);
+    });
+    return Math.round(total);
+}
+function marginPct(pricePublic, commissionPct, costPrice) {
+    const net = priceNet(pricePublic, commissionPct);
+    if (!net) return 0;
+    return Math.round(((net - costPrice) / net) * 100);
+}
+const CATEGORY_ICONS = {
+    'Sacs à main': ['👜', '#D8C9B5'], 'Bracelets': ['📿', '#C9D3C4'], 'Parures': ['💎', '#E5D3C8'],
+    'Serre-tête': ['🎀', '#E8D9E0'], 'Objets Déco': ['🏺', '#D9CBB8'], 'Chapeaux': ['🎩', '#CBB9A8'],
+    'Robes': ['👗', '#DCC7CE'], 'Vêtements': ['👕', '#C8D0D8'], 'Accessoires': ['✨', '#E0DACB']
+};
+function categoryPlaceholder(catName) {
+    const [icon, color] = CATEGORY_ICONS[catName] || ['🧵', '#E8E2D9'];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300"><rect width="300" height="300" fill="${color}"/><text x="50%" y="53%" font-size="110" text-anchor="middle" dominant-baseline="middle">${icon}</text></svg>`;
+    return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+function productImage(p) {
+    const cat = getCategory(p.categoryId);
+    return p.image && p.image.length > 0 ? p.image : categoryPlaceholder(cat ? cat.name : '');
+}
+function stockStatusLabel(se) {
+    const stock = stockEntryStock(se);
+    const loc = getLocation(se.locationId);
+    if (loc && loc.type === 'atelier_central') return stock > 0 ? 'Disponible Atelier' : 'Épuisé';
+    if (stock <= 0 && (se.qtySold || 0) > 0) return 'Épuisé (Tout Vendu)';
+    if (stock > 0 && stock < (se.qtyDeposited || 0)) return 'Stock Partiel';
+    return 'En Dépôt';
+}
+function statusBadgeClass(label) {
+    if (label.includes('Épuisé')) return 'badge-clay';
+    if (label.includes('Disponible') || label === 'En Dépôt') return 'badge-sage';
+    return 'badge-sand';
+}
+function isDormant(se) {
+    const stock = stockEntryStock(se);
+    if (stock <= 0 || (se.qtySold || 0) > 0) return false;
+    const days = Math.floor((Date.now() - new Date(se.depositDate).getTime()) / 86400000);
+    return days > 45;
+}
+
+// ===================== PÉRIODES =====================
+function iso(d) { return d.toISOString().slice(0, 10); }
+function periodRange(type, customStart, customEnd) {
+    const today = new Date();
+    if (type === 'today') { const s = iso(today); return { start: s, end: s }; }
+    if (type === 'week') {
+        const dow = today.getDay() || 7;
+        const monday = new Date(today); monday.setDate(today.getDate() - dow + 1);
+        return { start: iso(monday), end: iso(today) };
+    }
+    if (type === 'month') return { start: iso(new Date(today.getFullYear(), today.getMonth(), 1)), end: iso(today) };
+    if (type === 'lastmonth') return {
+        start: iso(new Date(today.getFullYear(), today.getMonth() - 1, 1)),
+        end: iso(new Date(today.getFullYear(), today.getMonth(), 0))
+    };
+    if (type === 'year') return { start: iso(new Date(today.getFullYear(), 0, 1)), end: iso(today) };
+    if (type === 'custom') return { start: customStart, end: customEnd };
+    return { start: null, end: null }; // 'all'
+}
+function previousEquivalentPeriod(start, end) {
+    if (!start || !end) return { start: null, end: null };
+    const s = new Date(start), e = new Date(end);
+    const lengthMs = e - s;
+    const prevEnd = new Date(s.getTime() - 86400000);
+    const prevStart = new Date(prevEnd.getTime() - lengthMs);
+    return { start: iso(prevStart), end: iso(prevEnd) };
+}
+function samePeriodLastYear(start, end) {
+    if (!start || !end) return { start: null, end: null };
+    const s = new Date(start); s.setFullYear(s.getFullYear() - 1);
+    const e = new Date(end); e.setFullYear(e.getFullYear() - 1);
+    return { start: iso(s), end: iso(e) };
+}
+function periodLabel(type) {
+    return { today: "Aujourd'hui", week: 'Cette semaine', month: 'Ce mois', lastmonth: 'Mois dernier', year: 'Cette année', all: 'Depuis le début', custom: 'Période choisie' }[type] || type;
+}
+
+// ===================== AGRÉGATION VENTES / RAPPORTS =====================
+function computeMetrics(start, end) {
+    const sales = live(appState.sales).filter(s => (!start || s.saleDate >= start) && (!end || s.saleDate <= end));
+    let caBrut = 0, caNet = 0, cout = 0, benefice = 0, creances = 0;
+    const byCategory = {}, byLocation = {};
+    sales.forEach(s => {
+        const product = getProduct(s.productId);
+        if (!product) return;
+        const cat = getCategory(product.categoryId);
+        const loc = getLocation(s.locationId);
+        const brut = s.qty * s.unitPrice;
+        const net = Math.round(s.qty * s.unitPrice * (1 - (s.commissionPct || 0) / 100));
+        const costP = costPriceOf(product);
+        const cost = s.qty * costP;
+        const ben = net - cost;
+        caBrut += brut; caNet += net; cout += cost; benefice += ben;
+        if (!s.isPaid) creances += net;
+        const catName = cat ? cat.name : 'Autre';
+        byCategory[catName] = byCategory[catName] || { qty: 0, benefice: 0, caNet: 0 };
+        byCategory[catName].qty += s.qty; byCategory[catName].benefice += ben; byCategory[catName].caNet += net;
+        const locName = loc ? loc.name : '—';
+        byLocation[locName] = byLocation[locName] || { qty: 0, benefice: 0, caNet: 0 };
+        byLocation[locName].qty += s.qty; byLocation[locName].benefice += ben; byLocation[locName].caNet += net;
+    });
+    return { caBrut, caNet, cout, benefice, creances, byCategory, byLocation, salesCount: sales.length };
+}
+function currentStockByLocation() {
+    const map = {};
+    live(appState.stockEntries).forEach(se => {
+        const loc = getLocation(se.locationId);
+        const locName = loc ? loc.name : '—';
+        map[locName] = (map[locName] || 0) + stockEntryStock(se);
+    });
+    return map;
+}
+function currentStockValue() {
+    let cost = 0, pub = 0;
+    live(appState.stockEntries).forEach(se => {
+        const product = getProduct(se.productId);
+        if (!product) return;
+        const stock = stockEntryStock(se);
+        cost += stock * costPriceOf(product);
+        pub += stock * (product.pricePublic || 0);
+    });
+    return { cost, pub };
+}
+
+// ===================== DISPATCH DES PAGES =====================
+function renderAll() { if (document.getElementById('main-content')) renderPage(currentPage); }
+function renderPage(id) {
+    const main = document.getElementById('main-content');
+    const renderers = {
+        dashboard: renderDashboardPage, catalogue: renderCataloguePage, depots: renderDepotsPage,
+        rapports: renderRapportsPage, matieres: renderMatieresPage, couturiere: renderCouturierePage,
+        courses: renderCoursesPage, marketing: renderMarketingPage, rd: renderRDPage,
+        parametres: renderParametresPage, aide: renderAidePage
+    };
+    main.innerHTML = (renderers[id] || renderDashboardPage)();
+    if (window['after_' + id]) window['after_' + id]();
+}
+
+// ===================== 1. TABLEAU DE BORD =====================
+function computeMetricsPaidOnly(start, end) {
+    const sales = live(appState.sales).filter(s => s.isPaid && (!start || s.saleDate >= start) && (!end || s.saleDate <= end));
+    let caNet = 0, cout = 0;
+    sales.forEach(s => {
+        const product = getProduct(s.productId);
+        if (!product) return;
+        caNet += Math.round(s.qty * s.unitPrice * (1 - (s.commissionPct || 0) / 100));
+        cout += s.qty * costPriceOf(product);
+    });
+    return { caNet, cout, benefice: caNet - cout };
+}
+function computeOrderFinancials(order) {
+    const lines = live(appState.subOrderLines).filter(l => l.orderId === order.id && !l.reallocatedToLineId);
+    const totalCost = lines.reduce((a, l) => a + l.qtyOrdered * (order.unitLaborCost || 0), 0);
+    const balanceDue = totalCost - (order.advance || 0);
+    return { totalCost, balanceDue };
+}
+function renderDashboardPage() {
+    const { start, end } = periodRange('month');
+    const m = computeMetrics(start, end);
+    const mPaid = computeMetricsPaidOnly(start, end);
+    const stockByLoc = currentStockByLocation();
+    const stockVal = currentStockValue();
+    const dormantCount = live(appState.stockEntries).filter(isDormant).length;
+    const unpaidSales = live(appState.sales).filter(s => !s.isPaid);
+    const unpaidCount = live(appState.stockEntries).filter(se => unpaidQtyOf(se) > 0).length;
+    const unpaidAmount = unpaidSales.reduce((a, s) => a + Math.round(s.qty * s.unitPrice * (1 - (s.commissionPct || 0) / 100)), 0);
+    const unreconciledAdvances = live(appState.subAdvances).filter(a => !a.isReconciled);
+    const pendingRetouches = live(appState.subReceptions).filter(r => (r.qtyAAjuster || 0) > (r.qtyRetoucheConforme || 0) + (r.qtyRetoucheRejete || 0));
+    const noCostCount = live(appState.products).filter(p => costPriceOf(p) === 0).length;
+    const rejectedByOrder = {};
+    live(appState.subReceptions).forEach(r => {
+        const rej = (r.qtyRejete || 0) + (r.qtyRetoucheRejete || 0);
+        if (!rej) return;
+        const line = appState.subOrderLines.find(l => l.id === r.orderLineId);
+        if (!line) return;
+        const order = appState.subOrders.find(o => o.id === line.orderId);
+        if (!order) return;
+        rejectedByOrder[order.ref] = (rejectedByOrder[order.ref] || 0) + rej;
+    });
+    const soldeConfection = live(appState.subOrders).reduce((a, o) => {
+        const fin = computeOrderFinancials(o);
+        return a + Math.max(0, fin.balanceDue);
+    }, 0);
+
+    return `
+    <div class="flex between center" style="margin-bottom:14px;">
+        <h2 class="serif" style="font-size:18px;">Synthèse Financière & Activités — ${periodLabel('month')}</h2>
+        <button class="btn btn-outline btn-sm" onclick="navigate('rapports')">Voir tous les rapports →</button>
+    </div>
+    <div class="grid g4" style="margin-bottom:12px;">
+        <div class="card p3"><p class="lbl">CA Net (Revenu Créateur)</p><p class="serif" style="font-size:19px;">${fmt(m.caNet)}</p><p class="muted" style="font-size:10px;">Brut vendu : ${fmt(m.caBrut)}</p></div>
+        <div class="card p3" style="border-left:3px solid var(--sage);"><p class="lbl">Bénéfice Net Estimé</p><p class="serif" style="font-size:19px;color:var(--sage-dark);">${fmt(mPaid.benefice)}</p><p class="muted" style="font-size:10px;">Sur ventes encaissées & réglées</p></div>
+        <div class="card p3"><p class="lbl">Valeur Stock (Prix Public)</p><p class="serif" style="font-size:19px;">${fmt(stockVal.pub)}</p></div>
+        <div class="card p3"><p class="lbl">Créances Boutiques (Non Réglé)</p><p class="serif" style="font-size:19px;">${fmt(unpaidAmount)}</p><p style="font-size:10px;color:var(--clay);">Vendus non encore réglés</p></div>
+    </div>
+    <div class="grid g3" style="margin-bottom:16px;">
+        <div class="card p3"><p class="lbl">Coût de Revient Total (Vendus)</p><p class="serif" style="font-size:16px;">${fmt(m.cout)}</p></div>
+        <div class="card p3"><p class="lbl">Valeur Stock (Coût de Revient)</p><p class="serif" style="font-size:16px;">${fmt(stockVal.cost)}</p></div>
+        <div class="card p3"><p class="lbl">Engagement Confection Solde</p><p class="serif" style="font-size:16px;">${fmt(soldeConfection)}</p></div>
+    </div>
+    <div class="card p4" style="margin-bottom:16px;">
+        <h3 class="serif" style="font-size:14px;margin-bottom:10px;">📍 Stock actuel par emplacement</h3>
+        <div class="grid g4">
+        ${Object.entries(stockByLoc).map(([name, qty]) => `
+            <div style="text-align:center;background:var(--cream);border-radius:8px;padding:10px;">
+                <p style="font-size:20px;font-weight:600;">${qty}</p>
+                <p class="muted" style="font-size:10px;">${name}</p>
+            </div>
+        `).join('') || '<p class="muted">Aucun stock enregistré.</p>'}
+        </div>
+    </div>
+    <div class="card p4" style="border-left:3px solid var(--clay);">
+        <h3 class="serif" style="font-size:14px;margin-bottom:8px;">⚠️ Alertes Intelligentes & Confection</h3>
+        <ul style="font-size:12px;color:var(--warmgray);padding-left:18px;line-height:1.9;">
+            ${unpaidSales.length ? `<li>ℹ️ Le bénéfice net ci-dessus ne compte QUE les ventes déjà encaissées. <strong>${unpaidSales.length} vente(s) non réglée(s)</strong> (${fmt(unpaidAmount)}) n'y sont pas encore incluses — elles apparaîtront dès que tu les marqueras "Réglé".</li>` : ''}
+            ${noCostCount ? `<li>💡 ${noCostCount} article(s) n'ont pas encore de coût de revient renseigné — la marge ne peut pas être calculée pour eux.</li>` : ''}
+            ${Object.entries(rejectedByOrder).map(([ref, n]) => `<li>🔍 Qualité Atelier : <strong>${n} pièce(s) rejetée(s)</strong> sur la commande #${ref}</li>`).join('')}
+            ${dormantCount ? `<li>${dormantCount} article(s) dorment en dépôt depuis plus de 45 jours — <a href="#" onclick="navigate('depots');return false;" style="color:var(--clay);">voir</a></li>` : ''}
+            ${unpaidCount ? `<li>${unpaidCount} dépôt(s) avec des ventes non encore réglées par la boutique</li>` : ''}
+            ${unreconciledAdvances.length ? `<li>${unreconciledAdvances.length} avance(s) couturière non réconciliée(s)</li>` : ''}
+            ${pendingRetouches.length ? `<li>${pendingRetouches.length} lot(s) en retouche chez la couturière en attente de retour</li>` : ''}
+            ${live(appState.materials).filter(mt => mt.stockAtelier < 5).length ? `<li>Stock matière bas sur ${live(appState.materials).filter(mt => mt.stockAtelier < 5).length} fourniture(s)</li>` : ''}
+            ${(!unpaidSales.length && !noCostCount && !Object.keys(rejectedByOrder).length && !dormantCount && !unpaidCount && !unreconciledAdvances.length && !pendingRetouches.length) ? '<li>✅ Rien à signaler pour le moment.</li>' : ''}
+        </ul>
+    </div>`;
+}
+
+// ===================== 2. CATALOGUE =====================
+function renderCataloguePage() {
+    return `
+    <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div><h2 class="serif" style="font-size:18px;">Catalogue des Créations</h2><p class="muted" style="font-size:11px;">Fiches produits, coût de revient détaillé, catégories</p></div>
+        <div class="flex gap-2">
+            <button class="btn btn-outline btn-sm" onclick="exportCatalogueExcel()">📊 Excel</button>
+            <button class="btn btn-outline btn-sm" onclick="exportCataloguePDF()">📄 PDF</button>
+            <button class="btn btn-dark btn-sm" onclick="openProductModal()">+ Nouvelle Création</button>
+        </div>
+    </div>
+    <div class="flex gap-2" style="margin-bottom:14px;flex-wrap:wrap;">
+        <input type="text" id="cat-search" class="input" style="max-width:220px;" placeholder="Rechercher..." oninput="renderCatalogueGrid()">
+        <select id="cat-filter-cat" class="input" style="max-width:180px;" onchange="renderCatalogueGrid()">${categorySelectOptionsAll()}</select>
+    </div>
+    <div id="cat-grid" class="grid g4"></div>`;
+}
+function categorySelectOptionsAll() {
+    return `<option value="Toutes">Toutes catégories</option>` + live(appState.categories).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+}
+function after_catalogue() { renderCatalogueGrid(); }
+function renderCatalogueGrid() {
+    const grid = document.getElementById('cat-grid');
+    if (!grid) return;
+    const search = (document.getElementById('cat-search')?.value || '').toLowerCase();
+    const catF = document.getElementById('cat-filter-cat')?.value || 'Toutes';
+    const items = live(appState.products).filter(p =>
+        (p.name.toLowerCase().includes(search) || p.ref.toLowerCase().includes(search)) &&
+        (catF === 'Toutes' || p.categoryId === catF)
+    );
+    grid.innerHTML = items.map(p => {
+        const cat = getCategory(p.categoryId);
+        const cost = costPriceOf(p);
+        const stock = live(appState.stockEntries).filter(se => se.productId === p.id).reduce((a, se) => a + stockEntryStock(se), 0);
+        return `
+        <div class="card p3">
+            <div style="width:100%;height:120px;border-radius:8px;overflow:hidden;margin-bottom:8px;position:relative;">
+                <img src="${productImage(p)}" style="width:100%;height:100%;object-fit:cover;">
+                <span style="position:absolute;top:6px;right:6px;background:rgba(26,26,26,.75);color:#fff;font-size:9px;padding:2px 6px;border-radius:4px;">${p.ref}</span>
+            </div>
+            <p class="muted" style="font-size:9px;text-transform:uppercase;">${cat ? cat.name : ''}</p>
+            <h4 class="serif" style="font-size:13px;">${p.name}</h4>
+            <p style="font-size:13px;font-weight:600;margin-top:2px;">${fmt(p.pricePublic)}</p>
+            <p class="muted" style="font-size:10px;">Stock total : ${stock}</p>
+            ${cost > 0 ? `<p style="font-size:10px;color:var(--sage-dark);">Coût revient : ${fmt(cost)}</p>` : `<p style="font-size:10px;color:var(--clay);">Coût de revient non détaillé</p>`}
+            <div class="flex gap-2" style="margin-top:8px;">
+                <button class="btn btn-outline btn-sm" onclick="openProductModal('${p.id}')">✏️ Modifier</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">🗑️</button>
+            </div>
+        </div>`;
+    }).join('') || '<p class="muted">Aucune création trouvée.</p>';
+}
+function categoryOptionsHTML(selectedId) {
+    return live(appState.categories).map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name}</option>`).join('') + `<option value="__new__">+ Nouvelle catégorie...</option>`;
+}
+function handleNewCategoryInline(selectId) {
+    const sel = document.getElementById(selectId);
+    if (sel.value === '__new__') {
+        const name = prompt("Nom de la nouvelle catégorie :");
+        if (name && name.trim()) {
+            const cat = newRecord({ name: name.trim() });
+            appState.categories.push(cat);
+            sel.innerHTML = categoryOptionsHTML(cat.id);
+        } else { sel.selectedIndex = 0; }
+    }
+}
+const COST_TYPE_LABELS = { matiere: 'Matière (hors BOM)', main_oeuvre_interne: 'Mon temps', main_oeuvre_artisane: "Main-d'œuvre artisane", packaging: 'Packaging', autre: 'Autre dépense' };
+function costItemsRowsHTML(items) {
+    return (items || []).filter(i => !i.deleted).map(ci => `
+        <tr data-ci-id="${ci.id}">
+            <td><select class="input ci-type">${Object.entries(COST_TYPE_LABELS).map(([k, l]) => `<option value="${k}" ${k === ci.costType ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+            <td><input class="input ci-label" value="${ci.label || ''}" placeholder="Ex: Maman - finitions"></td>
+            <td><input class="input ci-qty" type="number" step="0.1" value="${ci.quantity || 1}" style="width:60px;"></td>
+            <td><input class="input ci-rate" type="number" value="${ci.unitRate || 0}" style="width:80px;"></td>
+            <td style="text-align:right;">${fmt((ci.quantity || 0) * (ci.unitRate || 0))}</td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>
+        </tr>`).join('');
+}
+function addCostItemRow() {
+    const tbody = document.getElementById('ci-tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><select class="input ci-type">${Object.entries(COST_TYPE_LABELS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></td>
+        <td><input class="input ci-label" placeholder="Ex: Sachet satin + étiquette"></td>
+        <td><input class="input ci-qty" type="number" step="0.1" value="1" style="width:60px;"></td>
+        <td><input class="input ci-rate" type="number" value="0" style="width:80px;"></td>
+        <td style="text-align:right;">—</td>
+        <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>`;
+    tbody.appendChild(tr);
+}
+function readCostItemsFromForm() {
+    return Array.from(document.querySelectorAll('#ci-tbody tr')).map(tr => newRecord({
+        costType: tr.querySelector('.ci-type').value,
+        label: tr.querySelector('.ci-label').value,
+        quantity: parseFloat(tr.querySelector('.ci-qty').value) || 0,
+        unitRate: parseFloat(tr.querySelector('.ci-rate').value) || 0
+    }));
+}
+function openProductModal(id) {
+    const editing = !!id;
+    const p = editing ? getProduct(id) : null;
+    openModal(`
+        <h3 class="serif" style="font-size:16px;">${editing ? 'Modifier la Création' : 'Nouvelle Création'}</h3>
+        <form onsubmit="submitProduct(event, ${editing ? `'${id}'` : 'null'})" style="margin-top:12px;">
+            <label class="lbl">Nom</label>
+            <input class="input" id="pf-name" value="${p ? p.name : ''}" required style="margin-bottom:10px;">
+            <label class="lbl">Catégorie</label>
+            <select class="input" id="pf-cat" onchange="handleNewCategoryInline('pf-cat')" style="margin-bottom:10px;">${categoryOptionsHTML(p ? p.categoryId : null)}</select>
+            <label class="lbl">Photo (fichier ou URL)</label>
+            <input type="file" id="pf-img-file" accept="image/*" class="input" style="margin-bottom:6px;">
+            <input type="url" id="pf-img-url" class="input" value="${p ? (p.image || '') : ''}" placeholder="https://..." style="margin-bottom:10px;">
+            <label class="lbl">Prix Public (FCFA)</label>
+            <input class="input" id="pf-price" type="number" value="${p ? p.pricePublic : ''}" required style="margin-bottom:14px;">
+
+            <label class="lbl" style="margin-bottom:6px;">Lignes de coût de revient (matière hors BOM, main-d'œuvre, packaging, autre)</label>
+            <table style="width:100%;font-size:11px;margin-bottom:6px;">
+                <thead><tr><th>Type</th><th>Libellé</th><th>Qté</th><th>Taux</th><th>Total</th><th></th></tr></thead>
+                <tbody id="ci-tbody">${p ? costItemsRowsHTML(p.costItems) : ''}</tbody>
+            </table>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addCostItemRow()" style="margin-bottom:14px;">+ Ajouter une ligne de coût</button>
+
+            <div class="flex between" style="margin-top:16px;">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+                <button type="submit" class="btn btn-dark">${editing ? 'Mettre à jour' : 'Enregistrer'}</button>
+            </div>
+        </form>`);
+}
+function submitProduct(e, id) {
+    e.preventDefault();
+    const name = document.getElementById('pf-name').value;
+    const categoryId = document.getElementById('pf-cat').value;
+    const pricePublic = parseInt(document.getElementById('pf-price').value) || 0;
+    const urlImg = document.getElementById('pf-img-url').value;
+    const costItems = readCostItemsFromForm();
+    const fileInput = document.getElementById('pf-img-file');
+
+    const save = (base64) => {
+        if (id) {
+            const p = getProduct(id);
+            p.name = name; p.categoryId = categoryId; p.pricePublic = pricePublic;
+            if (base64) p.image = base64; else if (urlImg) p.image = urlImg;
+            p.costItems = costItems;
+            touch(p);
+        } else {
+            const nextNum = live(appState.products).length + 1;
+            appState.products.push(newRecord({
+                ref: `CREA-${String(nextNum).padStart(3, '0')}`, name, categoryId,
+                image: base64 || urlImg || '', pricePublic, costItems, recipe: [],
+                createdAt: todayISO(), isActive: true
+            }));
+        }
+        saveLocal(); closeModal(); renderAll();
+    };
+    if (fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = ev => save(ev.target.result);
+        reader.readAsDataURL(fileInput.files[0]);
+    } else save(null);
+}
+function deleteProduct(id) {
+    if (confirm("Archiver cette création ? (elle n'apparaîtra plus mais l'historique est conservé)")) {
+        softDelete('products', id); saveLocal(); renderAll();
+    }
+}
+function exportCatalogueExcel() {
+    let csv = "Réf;Nom;Catégorie;Prix Public;Coût Revient;Marge %\n";
+    live(appState.products).forEach(p => {
+        const cat = getCategory(p.categoryId);
+        const cost = costPriceOf(p);
+        csv += `${p.ref};${p.name};${cat ? cat.name : ''};${p.pricePublic};${cost};${marginPct(p.pricePublic, 0, cost)}\n`;
+    });
+    downloadFile('Catalogue_DearSanel.csv', csv, 'text/csv;charset=utf-8;');
+}
+function downloadFile(filename, content, mime) {
+    const blob = new Blob(["\ufeff" + content], { type: mime });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+}
+function exportCataloguePDF() {
+    const rows = live(appState.products).map(p => {
+        const cat = getCategory(p.categoryId);
+        return `<tr><td><img src="${productImage(p)}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td>${cat ? cat.name : ''}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td></tr>`;
+    }).join('');
+    printHTML(`<h2>Dear San'el — Catalogue des Créations</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Nom</th><th>Catégorie</th><th>Prix Public</th></tr>${rows}</table>`);
+}
+function printHTML(innerHTML) {
+    const w = window.open('', '_blank');
+    w.document.write(`<html><head><title>Dear San'el</title></head><body>${innerHTML}</body></html>`);
+    w.document.close(); w.focus();
+    setTimeout(() => w.print(), 400);
+}
+
+// ===================== 3. DÉPÔTS & VENTES =====================
+function renderDepotsPage() {
+    return `
+    <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div><h2 class="serif" style="font-size:18px;">Dépôts & Ventes</h2><p class="muted" style="font-size:11px;">Chaque dépôt pointe vers une création déjà cataloguée</p></div>
+        <button class="btn btn-dark btn-sm" onclick="openDepositModal()">+ Nouveau Dépôt</button>
+    </div>
+    <div class="flex gap-2" style="margin-bottom:12px;overflow-x:auto;">
+        <button class="btn btn-sm ${depotLocFilter==='Tous'?'btn-dark':'btn-outline'}" onclick="setDepotFilter('Tous')">Tous</button>
+        ${live(appState.locations).map(l => `<button class="btn btn-sm ${depotLocFilter===l.id?'btn-dark':'btn-outline'}" onclick="setDepotFilter('${l.id}')">${l.name}</button>`).join('')}
+    </div>
+    <div class="card" style="overflow-x:auto;">
+        <table><thead><tr><th>Photo</th><th>Création</th><th>Emplacement</th><th>Stock</th><th>Prix Public</th><th>Prix Net</th><th>Statut</th><th>Date dépôt</th><th></th></tr></thead>
+        <tbody id="depots-tbody"></tbody></table>
+    </div>
+    <div class="card p3 flex between center" style="margin-top:14px;flex-wrap:wrap;gap:10px;">
+        <div><h4 class="serif" style="font-size:13px;">Bordereau de dépôt PDF</h4><p class="muted" style="font-size:11px;">Avec photos des articles</p></div>
+        <div class="flex gap-2">
+            <select id="bordereau-loc" class="input">${live(appState.locations).filter(l => l.type !== 'atelier_central').map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select>
+            <button class="btn btn-outline btn-sm" onclick="generateBordereau()">📄 Générer</button>
+        </div>
+    </div>`;
+}
+let depotLocFilter = 'Tous';
+function setDepotFilter(v) { depotLocFilter = v; renderDepotsTable(); }
+function after_depots() { renderDepotsTable(); }
+function renderDepotsTable() {
+    const tbody = document.getElementById('depots-tbody');
+    if (!tbody) return;
+    const entries = live(appState.stockEntries).filter(se => depotLocFilter === 'Tous' || se.locationId === depotLocFilter);
+    tbody.innerHTML = entries.map(se => {
+        const p = getProduct(se.productId);
+        if (!p) return '';
+        const loc = getLocation(se.locationId);
+        const stock = stockEntryStock(se);
+        const label = stockStatusLabel(se);
+        const unpaid = unpaidQtyOf(se);
+        return `<tr>
+            <td><img src="${productImage(p)}" class="thumb" style="width:36px;height:36px;"></td>
+            <td>${p.name}<br><span class="mono muted" style="font-size:9px;">${p.ref}</span></td>
+            <td class="muted">${loc ? loc.name : ''}</td>
+            <td class="mono">${stock} / ${se.qtyDeposited}</td>
+            <td class="mono">${fmt(p.pricePublic)}</td>
+            <td class="mono" style="color:var(--sage-dark);">${fmt(priceNet(p.pricePublic, loc ? loc.commissionPct : 0))}</td>
+            <td><span class="badge ${statusBadgeClass(label)}">${label}</span>${unpaid > 0 ? `<div style="font-size:9px;color:var(--clay);">${unpaid} non réglé</div>` : ''}${isDormant(se) ? `<div style="font-size:9px;color:var(--clay);">Dort > 45j</div>` : ''}</td>
+            <td class="muted" style="font-size:11px;">${se.depositDate || ''}</td>
+            <td style="white-space:nowrap;">
+                ${stock > 0 ? `<button class="btn btn-sage btn-sm" onclick="openSaleModal('${se.id}')">Vendre</button>` : ''}
+                ${unpaid > 0 ? `<button class="btn btn-outline btn-sm" onclick="openSettleModal('${se.id}')">Régler</button>` : ''}
+            </td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="9" class="muted" style="text-align:center;padding:20px;">Aucun dépôt.</td></tr>';
+}
+
+function productAutocompleteHTML() {
+    return `
+    <label class="lbl">Catégorie</label>
+    <select class="input" id="df-cat" onchange="filterDepositProductOptions()" style="margin-bottom:10px;">
+        <option value="">Toutes catégories</option>
+        ${live(appState.categories).map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+    </select>
+    <label class="lbl">Création (tape pour chercher)</label>
+    <input class="input" id="df-product-search" list="df-product-list" placeholder="Nom de la création..." oninput="syncDepositProductSelect()" style="margin-bottom:10px;">
+    <datalist id="df-product-list"></datalist>
+    <input type="hidden" id="df-product-id">`;
+}
+function filterDepositProductOptions() { syncDepositProductSelect(true); }
+function syncDepositProductSelect() {
+    const catId = document.getElementById('df-cat').value;
+    const search = document.getElementById('df-product-search').value.toLowerCase();
+    const list = document.getElementById('df-product-list');
+    const candidates = live(appState.products).filter(p => (!catId || p.categoryId === catId));
+    list.innerHTML = candidates.map(p => `<option data-id="${p.id}" value="${p.name}">`).join('');
+    const match = candidates.find(p => p.name.toLowerCase() === search);
+    document.getElementById('df-product-id').value = match ? match.id : '';
+}
+function openDepositModal() {
+    openModal(`
+        <h3 class="serif" style="font-size:16px;">Nouveau Dépôt</h3>
+        <p class="muted" style="font-size:11px;margin-bottom:10px;">Sélectionne une création déjà enregistrée au catalogue.</p>
+        <form onsubmit="submitDeposit(event)">
+            ${productAutocompleteHTML()}
+            <label class="lbl">Emplacement</label>
+            <select class="input" id="df-loc" style="margin-bottom:10px;">${live(appState.locations).map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select>
+            <label class="lbl">Quantité déposée</label>
+            <input class="input" id="df-qty" type="number" value="1" min="1" required style="margin-bottom:10px;">
+            <label class="lbl">Date du dépôt</label>
+            <input class="input" id="df-date" type="date" value="${todayISO()}" required style="margin-bottom:14px;">
+            <div class="flex between">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+                <button type="submit" class="btn btn-dark">Enregistrer le Dépôt</button>
+            </div>
+        </form>`);
+    syncDepositProductSelect();
+}
+function submitDeposit(e) {
+    e.preventDefault();
+    const productId = document.getElementById('df-product-id').value;
+    if (!productId) { alert("Choisis une création existant déjà dans le catalogue (ou crée-la d'abord dans Catalogue)."); return; }
+    const locationId = document.getElementById('df-loc').value;
+    const qty = parseInt(document.getElementById('df-qty').value) || 1;
+    const depositDate = document.getElementById('df-date').value;
+    appState.stockEntries.push(newRecord({
+        productId, locationId, qtyDeposited: qty, qtySold: 0, qtyReturned: 0, qtyPaid: 0,
+        depositDate, source: 'production_interne', notes: ''
+    }));
+    saveLocal(); closeModal(); renderAll();
+}
+
+function openSaleModal(seId) {
+    const se = appState.stockEntries.find(x => x.id === seId);
+    const p = getProduct(se.productId);
+    const stock = stockEntryStock(se);
+    openModal(`
+        <h3 class="serif" style="font-size:16px;">Déclarer une Vente</h3>
+        <p class="muted" style="font-size:11px;">${p.name} — stock disponible : ${stock}</p>
+        <form onsubmit="submitSale(event,'${seId}')" style="margin-top:10px;">
+            <label class="lbl">Quantité vendue</label>
+            <input class="input" id="sf-qty" type="number" value="1" min="1" max="${stock}" required style="margin-bottom:10px;">
+            <label class="lbl">Prix de vente unitaire (FCFA)</label>
+            <input class="input" id="sf-price" type="number" value="${p.pricePublic}" required style="margin-bottom:10px;">
+            <label class="lbl">Date de vente</label>
+            <input class="input" id="sf-date" type="date" value="${todayISO()}" required style="margin-bottom:10px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:14px;">
+                <input type="checkbox" id="sf-paid" checked> Montant déjà encaissé
+            </label>
+            <div class="flex between">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+                <button type="submit" class="btn btn-sage">Confirmer</button>
+            </div>
+        </form>`);
+}
+function submitSale(e, seId) {
+    e.preventDefault();
+    const se = appState.stockEntries.find(x => x.id === seId);
+    const loc = getLocation(se.locationId);
+    const qty = Math.min(stockEntryStock(se), parseInt(document.getElementById('sf-qty').value) || 1);
+    const unitPrice = parseInt(document.getElementById('sf-price').value) || 0;
+    const saleDate = document.getElementById('sf-date').value;
+    const isPaid = document.getElementById('sf-paid').checked;
+    se.qtySold = (se.qtySold || 0) + qty;
+    if (isPaid) se.qtyPaid = (se.qtyPaid || 0) + qty;
+    touch(se);
+    appState.sales.push(newRecord({
+        stockEntryId: se.id, productId: se.productId, locationId: se.locationId, qty, unitPrice,
+        commissionPct: loc ? loc.commissionPct : 0, saleDate, isPaid, paidDate: isPaid ? saleDate : null
+    }));
+    saveLocal(); closeModal(); renderAll();
+}
+function openSettleModal(seId) {
+    const se = appState.stockEntries.find(x => x.id === seId);
+    const unpaid = unpaidQtyOf(se);
+    openModal(`
+        <h3 class="serif" style="font-size:16px;">Régler un Encaissement</h3>
+        <p class="muted" style="font-size:11px;">${unpaid} vendu(s) non réglé(s)</p>
+        <form onsubmit="submitSettle(event,'${seId}')" style="margin-top:10px;">
+            <label class="lbl">Quantité réglée</label>
+            <input class="input" id="stf-qty" type="number" value="${unpaid}" min="1" max="${unpaid}" required style="margin-bottom:14px;">
+            <div class="flex between">
+                <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+                <button type="submit" class="btn btn-dark">Marquer Réglé</button>
+            </div>
+        </form>`);
+}
+function submitSettle(e, seId) {
+    e.preventDefault();
+    const se = appState.stockEntries.find(x => x.id === seId);
+    const qty = Math.min(unpaidQtyOf(se), parseInt(document.getElementById('stf-qty').value) || 1);
+    se.qtyPaid = (se.qtyPaid || 0) + qty; touch(se);
+    const relatedSales = live(appState.sales).filter(s => s.stockEntryId === se.id && !s.isPaid);
+    let remaining = qty;
+    relatedSales.forEach(s => { if (remaining > 0) { s.isPaid = true; s.paidDate = todayISO(); touch(s); remaining -= s.qty; } });
+    saveLocal(); closeModal(); renderAll();
+}
+function generateBordereau() {
+    const locId = document.getElementById('bordereau-loc').value;
+    const loc = getLocation(locId);
+    const entries = live(appState.stockEntries).filter(se => se.locationId === locId && stockEntryStock(se) > 0);
+    if (!entries.length) { alert("Aucun stock actif pour ce point de vente."); return; }
+    let total = 0;
+    const rows = entries.map(se => {
+        const p = getProduct(se.productId);
+        const stock = stockEntryStock(se);
+        total += stock * p.pricePublic;
+        return `<tr><td><img src="${productImage(p)}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td style="text-align:center;">${stock}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td><td style="text-align:right;">${fmt(stock * p.pricePublic)}</td></tr>`;
+    }).join('');
+    printHTML(`
+        <div style="text-align:center;"><h2>Dear San'el</h2><p>Bordereau de Dépôt — ${loc.name}</p><p style="font-size:11px;">${new Date().toLocaleDateString('fr-FR')}</p></div>
+        <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:14px;">
+        <tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Article</th><th>Qté</th><th>Prix Public</th><th>Total</th></tr>${rows}</table>
+        <p style="text-align:right;font-weight:bold;margin-top:10px;">Valeur totale : ${fmt(total)}</p>
+        <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:12px;">
+            <span>Signature Dear San'el : ____________</span><span>Signature Boutique : ____________</span>
+        </div>`);
+}
+
+// ===================== 4. RAPPORTS =====================
+let rapportPeriodType = 'month';
+let rapportCompareMode = 'previous'; // 'previous' | 'lastyear' | 'none'
+function renderRapportsPage() {
+    return `
+    <h2 class="serif" style="font-size:18px;margin-bottom:12px;">Rapports & Rentabilité</h2>
+    <div class="card p3" style="margin-bottom:14px;">
+        <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:10px;">
+            ${['today','week','month','lastmonth','year','all','custom'].map(t => `<button class="btn btn-sm ${rapportPeriodType===t?'btn-dark':'btn-outline'}" onclick="setRapportPeriod('${t}')">${periodLabel(t)}</button>`).join('')}
+        </div>
+        <div id="rp-custom-range" class="flex gap-2 ${rapportPeriodType==='custom'?'':'hidden'}" style="margin-bottom:10px;">
+            <input type="date" id="rp-custom-start" class="input" onchange="renderRapportsBody()">
+            <input type="date" id="rp-custom-end" class="input" onchange="renderRapportsBody()">
+        </div>
+        <div class="flex gap-2" style="align-items:center;">
+            <span class="lbl" style="margin:0;">Comparer à :</span>
+            <button class="btn btn-sm ${rapportCompareMode==='previous'?'btn-dark':'btn-outline'}" onclick="setCompareMode('previous')">Période précédente</button>
+            <button class="btn btn-sm ${rapportCompareMode==='lastyear'?'btn-dark':'btn-outline'}" onclick="setCompareMode('lastyear')">Même période l'an dernier</button>
+            <button class="btn btn-sm ${rapportCompareMode==='none'?'btn-dark':'btn-outline'}" onclick="setCompareMode('none')">Aucune</button>
+        </div>
+    </div>
+    <div id="rp-body"></div>`;
+}
+function setRapportPeriod(t) { rapportPeriodType = t; renderPage('rapports'); }
+function setCompareMode(m) { rapportCompareMode = m; renderRapportsBody(); }
+function after_rapports() { renderRapportsBody(); }
+
+function pctChange(cur, prev) {
+    if (!prev) return cur ? '+100%' : '—';
+    const change = ((cur - prev) / Math.abs(prev)) * 100;
+    return (change >= 0 ? '+' : '') + Math.round(change) + '%';
+}
+function renderRapportsBody() {
+    const body = document.getElementById('rp-body');
+    if (!body) return;
+    let { start, end } = periodRange(rapportPeriodType, document.getElementById('rp-custom-start')?.value, document.getElementById('rp-custom-end')?.value);
+    const m = computeMetrics(start, end);
+
+    let compare = null, compareLabel = '';
+    if (rapportCompareMode === 'previous' && start && end) {
+        const prev = previousEquivalentPeriod(start, end);
+        compare = computeMetrics(prev.start, prev.end); compareLabel = `vs période précédente (${prev.start} → ${prev.end})`;
+    } else if (rapportCompareMode === 'lastyear' && start && end) {
+        const ly = samePeriodLastYear(start, end);
+        compare = computeMetrics(ly.start, ly.end); compareLabel = `vs l'an dernier (${ly.start} → ${ly.end})`;
+    }
+    const stockByLoc = currentStockByLocation();
+
+    body.innerHTML = `
+    <div class="grid g4" style="margin-bottom:16px;">
+        ${kpiCard('CA Brut', m.caBrut, compare && compare.caBrut)}
+        ${kpiCard('CA Net', m.caNet, compare && compare.caNet)}
+        ${kpiCard('Coût de Revient', m.cout, compare && compare.cout)}
+        ${kpiCard('Bénéfice Net', m.benefice, compare && compare.benefice, true)}
+    </div>
+    ${compare ? `<p class="muted" style="font-size:10px;margin:-8px 0 16px;">Comparaison ${compareLabel}</p>` : ''}
+
+    <div class="grid g2" style="margin-bottom:16px;">
+        <div class="card p3">
+            <h4 class="serif" style="font-size:13px;margin-bottom:8px;">Par catégorie</h4>
+            ${Object.entries(m.byCategory).sort((a,b)=>b[1].benefice-a[1].benefice).map(([name,v]) => `
+                <div class="flex between" style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--sand);">
+                    <span>${name} <span class="muted">(${v.qty} vendus)</span></span><span style="color:var(--sage-dark);font-weight:600;">${fmt(v.benefice)}</span>
+                </div>`).join('') || '<p class="muted" style="font-size:12px;">Aucune vente sur la période.</p>'}
+        </div>
+        <div class="card p3">
+            <h4 class="serif" style="font-size:13px;margin-bottom:8px;">Par point de vente</h4>
+            ${Object.entries(m.byLocation).sort((a,b)=>b[1].benefice-a[1].benefice).map(([name,v]) => `
+                <div class="flex between" style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--sand);">
+                    <span>${name} <span class="muted">(${v.qty} vendus)</span></span><span style="color:var(--sage-dark);font-weight:600;">${fmt(v.benefice)}</span>
+                </div>`).join('') || '<p class="muted" style="font-size:12px;">Aucune vente sur la période.</p>'}
+        </div>
+    </div>
+
+    <div class="card p3" style="margin-bottom:16px;">
+        <h4 class="serif" style="font-size:13px;margin-bottom:8px;">📍 Stock actuel (indépendant de la période)</h4>
+        <div class="grid g4">
+        ${Object.entries(stockByLoc).map(([name,qty]) => `<div style="text-align:center;background:var(--cream);border-radius:8px;padding:8px;"><p style="font-size:17px;font-weight:600;">${qty}</p><p class="muted" style="font-size:10px;">${name}</p></div>`).join('')}
+        </div>
+    </div>
+
+    <div class="flex gap-2" style="margin-bottom:10px;">
+        <button class="btn btn-outline btn-sm" onclick="exportRapportPDF()">📄 Export PDF</button>
+    </div>`;
+}
+function kpiCard(label, value, compareValue, isProfit) {
+    return `<div class="card p3" ${isProfit ? 'style="border-left:3px solid var(--sage);"' : ''}>
+        <p class="lbl">${label}</p><p class="serif" style="font-size:17px;${isProfit?'color:var(--sage-dark);':''}">${fmt(value)}</p>
+        ${compareValue !== undefined && compareValue !== null ? `<p style="font-size:10px;color:var(--warmgray);">${pctChange(value, compareValue)}</p>` : ''}
+    </div>`;
+}
+function exportRapportPDF() {
+    const body = document.getElementById('rp-body').innerHTML;
+    printHTML(`<h2>Dear San'el — Rapport (${periodLabel(rapportPeriodType)})</h2>${body}`);
+}
+
+// ===================== 5. MATIÈRES PREMIÈRES (BOM) =====================
+function renderMatieresPage() {
+    return `
+    <div class="flex between center" style="margin-bottom:12px;">
+        <h2 class="serif" style="font-size:18px;">Matières Premières</h2>
+        <button class="btn btn-dark btn-sm" onclick="openMaterialModal()">+ Nouvelle Matière</button>
+    </div>
+    <div class="card" style="overflow-x:auto;">
+        <table><thead><tr><th>Matière</th><th>Unité</th><th>Stock Atelier</th><th>Stock chez couturière</th><th>Prix Unit.</th><th></th></tr></thead>
+        <tbody id="mat-tbody"></tbody></table>
+    </div>`;
+}
+function after_matieres() { renderMaterialsTable(); }
+function renderMaterialsTable() {
+    const tbody = document.getElementById('mat-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = live(appState.materials).map(m => `
+        <tr><td>${m.name}</td><td class="muted">${m.unit}</td>
+        <td class="mono ${m.stockAtelier < 5 ? 'style="color:#dc2626;font-weight:600;"' : ''}">${m.stockAtelier}</td>
+        <td class="mono">${m.stockChezCouturiere || 0}</td>
+        <td class="mono">${fmt(m.unitPrice)}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteMaterial('${m.id}')">Suppr.</button></td></tr>
+    `).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:16px;">Aucune matière enregistrée.</td></tr>';
+}
+function openMaterialModal() {
+    openModal(`
+        <h3 class="serif" style="font-size:16px;">Nouvelle Matière</h3>
+        <form onsubmit="submitMaterial(event)" style="margin-top:10px;">
+            <label class="lbl">Nom</label><input class="input" id="mf-name" required style="margin-bottom:10px;">
+            <label class="lbl">Unité</label><input class="input" id="mf-unit" value="Mètre" required style="margin-bottom:10px;">
+            <label class="lbl">Stock initial (atelier)</label><input class="input" id="mf-stock" type="number" value="0" style="margin-bottom:10px;">
+            <label class="lbl">Prix unitaire (FCFA)</label><input class="input" id="mf-price" type="number" value="0" style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
+        </form>`);
+}
+function submitMaterial(e) {
+    e.preventDefault();
+    appState.materials.push(newRecord({
+        name: document.getElementById('mf-name').value, unit: document.getElementById('mf-unit').value,
+        stockAtelier: parseFloat(document.getElementById('mf-stock').value) || 0, stockChezCouturiere: 0,
+        unitPrice: parseFloat(document.getElementById('mf-price').value) || 0
+    }));
+    saveLocal(); closeModal(); renderAll();
+}
+function deleteMaterial(id) { if (confirm("Supprimer cette matière ?")) { softDelete('materials', id); saveLocal(); renderAll(); } }
+
+// ===================== 6. SOUS-TRAITANCE COUTURIÈRE =====================
+function renderCouturierePage() {
+    return `
+    <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <h2 class="serif" style="font-size:18px;">Sous-traitance Couturière</h2>
+        <div class="flex gap-2">
+            <button class="btn btn-outline btn-sm" onclick="openSubcontractorModal()">+ Couturière</button>
+            <button class="btn btn-outline btn-sm" onclick="openAdvanceModal()">+ Avance de Caisse</button>
+            <button class="btn btn-dark btn-sm" onclick="openOrderModal()">+ Commande</button>
+        </div>
+    </div>
+    <div id="advances-block" class="card p3" style="margin-bottom:16px;"></div>
+    <div id="orders-block" class="grid g2"></div>`;
+}
+function after_couturiere() { renderAdvancesBlock(); renderOrdersBlock(); }
+function subcontractorName(id) { const s = appState.subcontractors.find(x => x.id === id); return s ? s.name : '—'; }
+function renderAdvancesBlock() {
+    const block = document.getElementById('advances-block');
+    if (!block) return;
+    const advances = live(appState.subAdvances);
+    block.innerHTML = `<h4 class="serif" style="font-size:13px;margin-bottom:8px;">💵 Avances de trésorerie (achats matières)</h4>
+    ${advances.map(a => `
+        <div class="flex between center" style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--sand);">
+            <span>${subcontractorName(a.subcontractorId)} — ${a.purpose || ''} <span class="muted">(${a.advanceDate})</span></span>
+            <span class="flex gap-2 center">
+                <strong>${fmt(a.amount)}</strong>
+                ${a.isReconciled ? `<span class="badge badge-sage">Réconciliée (${fmt(a.receiptAmount||0)})</span>` : `<button class="btn btn-outline btn-sm" onclick="openReconcileModal('${a.id}')">Réconcilier</button>`}
+            </span>
+        </div>`).join('') || '<p class="muted" style="font-size:12px;">Aucune avance enregistrée.</p>'}`;
+}
+function openSubcontractorModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Nouvelle Couturière / Atelier</h3>
+        <form onsubmit="submitSubcontractor(event)" style="margin-top:10px;">
+            <label class="lbl">Nom</label><input class="input" id="scf-name" required style="margin-bottom:10px;">
+            <label class="lbl">Contact</label><input class="input" id="scf-contact" style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
+        </form>`);
+}
+function submitSubcontractor(e) {
+    e.preventDefault();
+    appState.subcontractors.push(newRecord({ name: document.getElementById('scf-name').value, contact: document.getElementById('scf-contact').value }));
+    saveLocal(); closeModal(); renderAll();
+}
+function openAdvanceModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Avance de Caisse</h3>
+        <form onsubmit="submitAdvance(event)" style="margin-top:10px;">
+            <label class="lbl">Couturière</label>
+            <select class="input" id="af-sub" style="margin-bottom:10px;">${live(appState.subcontractors).map(s => `<option value="${s.id}">${s.name}</option>`).join('') || '<option value="">Ajoute d\'abord une couturière</option>'}</select>
+            <label class="lbl">Montant remis (FCFA)</label><input class="input" id="af-amount" type="number" required style="margin-bottom:10px;">
+            <label class="lbl">Motif</label><input class="input" id="af-purpose" placeholder="Achat de satin, élastiques..." style="margin-bottom:10px;">
+            <label class="lbl">Date</label><input class="input" id="af-date" type="date" value="${todayISO()}" style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Enregistrer</button></div>
+        </form>`);
+}
+function submitAdvance(e) {
+    e.preventDefault();
+    appState.subAdvances.push(newRecord({
+        subcontractorId: document.getElementById('af-sub').value, amount: parseInt(document.getElementById('af-amount').value) || 0,
+        purpose: document.getElementById('af-purpose').value, advanceDate: document.getElementById('af-date').value, isReconciled: false
+    }));
+    saveLocal(); closeModal(); renderAll();
+}
+function openReconcileModal(id) {
+    openModal(`<h3 class="serif" style="font-size:16px;">Réconcilier l'Avance</h3>
+        <form onsubmit="submitReconcile(event,'${id}')" style="margin-top:10px;">
+            <label class="lbl">Montant justifié par le reçu (FCFA)</label><input class="input" id="rf-amount" type="number" required style="margin-bottom:14px;">
+            <p class="muted" style="font-size:11px;margin-bottom:10px;">Le solde non justifié reste visible dans l'historique pour ton suivi.</p>
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Valider</button></div>
+        </form>`);
+}
+function submitReconcile(e, id) {
+    e.preventDefault();
+    const a = appState.subAdvances.find(x => x.id === id);
+    a.receiptAmount = parseInt(document.getElementById('rf-amount').value) || 0;
+    a.isReconciled = true; a.reconciledDate = todayISO(); touch(a);
+    saveLocal(); closeModal(); renderAll();
+}
+
+function renderOrdersBlock() {
+    const block = document.getElementById('orders-block');
+    if (!block) return;
+    const orders = live(appState.subOrders);
+    block.innerHTML = orders.map(o => {
+        const lines = live(appState.subOrderLines).filter(l => l.orderId === o.id && !l.reallocatedToLineId);
+        const receptions = live(appState.subReceptions).filter(r => lines.some(l => l.id === r.orderLineId));
+        const totalConforme = receptions.reduce((a, r) => a + (r.qtyConforme || 0) + (r.qtyRetoucheConforme || 0), 0);
+        const totalAAjuster = receptions.reduce((a, r) => a + Math.max(0, (r.qtyAAjuster || 0) - (r.qtyRetoucheConforme || 0) - (r.qtyRetoucheRejete || 0)), 0);
+        const totalRejete = receptions.reduce((a, r) => a + (r.qtyRejete || 0) + (r.qtyRetoucheRejete || 0), 0);
+        return `<div class="card p3">
+            <div class="flex between center">
+                <div><span class="mono muted" style="font-size:10px;">${o.ref} — ${subcontractorName(o.subcontractorId)}</span>
+                <h4 class="serif" style="font-size:14px;">Commande du ${o.orderDate}${o.dueDate ? ' · échéance ' + o.dueDate : ''}</h4></div>
+                <span class="badge badge-sand">${o.status}</span>
+            </div>
+            <div style="margin:8px 0;">
+                ${lines.map(l => {
+                    const p = getProduct(l.productId);
+                    return `<div class="flex between" style="font-size:12px;padding:3px 0;">
+                        <span>${l.qtyOrdered} × ${p ? p.name : '?'}</span>
+                        <button class="btn btn-outline btn-sm" onclick="openReallocateModal('${l.id}')">🔄 Réallouer</button>
+                    </div>`;
+                }).join('')}
+            </div>
+            <div class="flex gap-3" style="font-size:11px;margin-bottom:8px;">
+                <span>✅ Conformes : <strong>${totalConforme}</strong></span>
+                <span style="color:var(--clay);">🔧 À ajuster : <strong>${totalAAjuster}</strong></span>
+                <span style="color:#dc2626;">❌ Rejetés : <strong>${totalRejete}</strong></span>
+            </div>
+            <div class="flex gap-2">
+                <button class="btn btn-dark btn-sm" onclick="openReceptionModal('${o.id}')">+ Réception & Contrôle</button>
+            </div>
+        </div>`;
+    }).join('') || '<p class="muted">Aucune commande en cours.</p>';
+}
+function openOrderModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Nouvelle Commande de Confection</h3>
+        <form onsubmit="submitOrder(event)" style="margin-top:10px;">
+            <label class="lbl">Couturière</label>
+            <select class="input" id="of-sub" style="margin-bottom:10px;">${live(appState.subcontractors).map(s => `<option value="${s.id}">${s.name}</option>`).join('') || '<option value="">Ajoute d\'abord une couturière</option>'}</select>
+            <label class="lbl">Date de la commande</label><input class="input" id="of-date" type="date" value="${todayISO()}" style="margin-bottom:10px;">
+            <label class="lbl">Date limite de livraison souhaitée</label><input class="input" id="of-due" type="date" style="margin-bottom:10px;">
+            <label class="lbl">Coût façon par pièce (FCFA)</label><input class="input" id="of-labor" type="number" value="0" style="margin-bottom:10px;">
+            <label class="lbl">Acompte Initial Versé (FCFA)</label><input class="input" id="of-advance" type="number" value="0" style="margin-bottom:10px;">
+            <label class="lbl" style="margin-top:6px;">Modèle(s) commandé(s)</label>
+            <div id="of-lines"></div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addOrderLineRow()" style="margin:6px 0 14px;">+ Ajouter un modèle</button>
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Lancer la Commande</button></div>
+        </form>`);
+    addOrderLineRow();
+}
+function addOrderLineRow() {
+    const div = document.getElementById('of-lines');
+    const row = document.createElement('div');
+    row.className = 'flex gap-2';
+    row.style.marginBottom = '6px';
+    row.innerHTML = `<select class="input of-line-product">${live(appState.products).map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select>
+        <input class="input of-line-qty" type="number" value="1" min="1" style="max-width:80px;">
+        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>`;
+    div.appendChild(row);
+}
+function submitOrder(e) {
+    e.preventDefault();
+    const order = newRecord({
+        ref: `BC-${String(live(appState.subOrders).length + 1).padStart(3, '0')}`,
+        subcontractorId: document.getElementById('of-sub').value,
+        orderDate: document.getElementById('of-date').value, dueDate: document.getElementById('of-due').value,
+        status: 'Lancé', unitLaborCost: parseInt(document.getElementById('of-labor').value) || 0,
+        advance: parseInt(document.getElementById('of-advance').value) || 0
+    });
+    appState.subOrders.push(order);
+    document.querySelectorAll('#of-lines > div').forEach(row => {
+        appState.subOrderLines.push(newRecord({
+            orderId: order.id, productId: row.querySelector('.of-line-product').value,
+            qtyOrdered: parseInt(row.querySelector('.of-line-qty').value) || 1
+        }));
+    });
+    saveLocal(); closeModal(); renderAll();
+}
+function openReallocateModal(lineId) {
+    openModal(`<h3 class="serif" style="font-size:16px;">Réallouer ce modèle</h3>
+        <p class="muted" style="font-size:11px;margin-bottom:10px;">Transformer la quantité restante vers un autre modèle mieux maîtrisé.</p>
+        <form onsubmit="submitReallocate(event,'${lineId}')">
+            <label class="lbl">Nouveau modèle</label>
+            <select class="input" id="rlf-product" style="margin-bottom:10px;">${live(appState.products).map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select>
+            <label class="lbl">Nouvelle quantité</label><input class="input" id="rlf-qty" type="number" value="1" min="1" style="margin-bottom:10px;">
+            <label class="lbl">Motif</label><input class="input" id="rlf-reason" placeholder="Ex: coupe ratée, tissu réutilisé" style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Valider</button></div>
+        </form>`);
+}
+function submitReallocate(e, lineId) {
+    e.preventDefault();
+    const oldLine = appState.subOrderLines.find(l => l.id === lineId);
+    const newLine = newRecord({
+        orderId: oldLine.orderId, productId: document.getElementById('rlf-product').value,
+        qtyOrdered: parseInt(document.getElementById('rlf-qty').value) || 1
+    });
+    appState.subOrderLines.push(newLine);
+    oldLine.reallocatedToLineId = newLine.id;
+    oldLine.reallocationReason = document.getElementById('rlf-reason').value;
+    touch(oldLine);
+    saveLocal(); closeModal(); renderAll();
+}
+function openReceptionModal(orderId) {
+    const lines = live(appState.subOrderLines).filter(l => l.orderId === orderId && !l.reallocatedToLineId);
+    openModal(`<h3 class="serif" style="font-size:16px;">Réception & Contrôle Qualité</h3>
+        <form onsubmit="submitReception(event,'${orderId}')" style="margin-top:10px;">
+            <label class="lbl">Ligne / modèle concerné</label>
+            <select class="input" id="recf-line" style="margin-bottom:10px;">${lines.map(l => { const p = getProduct(l.productId); return `<option value="${l.id}">${p ? p.name : '?'}</option>`; }).join('')}</select>
+            <label class="lbl">Date de réception</label><input class="input" id="recf-date" type="date" value="${todayISO()}" style="margin-bottom:10px;">
+            <div class="grid g3" style="margin-bottom:10px;">
+                <div><label class="lbl">Conforme</label><input class="input" id="recf-ok" type="number" value="0"></div>
+                <div><label class="lbl">Rejeté</label><input class="input" id="recf-rej" type="number" value="0"></div>
+                <div><label class="lbl">À ajuster</label><input class="input" id="recf-adj" type="number" value="0"></div>
+            </div>
+            <label class="lbl">Dispatching des pièces conformes vers :</label>
+            <select class="input" id="recf-dispatch-loc" style="margin-bottom:10px;">${live(appState.locations).map(l => `<option value="${l.id}" ${l.type==='atelier_central'?'selected':''}>${l.name}</option>`).join('')}</select>
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Valider Réception</button></div>
+        </form>`);
+}
+function submitReception(e, orderId) {
+    e.preventDefault();
+    const lineId = document.getElementById('recf-line').value;
+    const line = appState.subOrderLines.find(l => l.id === lineId);
+    const order = appState.subOrders.find(o => o.id === orderId);
+    const qtyOk = parseInt(document.getElementById('recf-ok').value) || 0;
+    const qtyRej = parseInt(document.getElementById('recf-rej').value) || 0;
+    const qtyAdj = parseInt(document.getElementById('recf-adj').value) || 0;
+    const dispatchLoc = document.getElementById('recf-dispatch-loc').value;
+    appState.subReceptions.push(newRecord({
+        orderLineId: lineId, receptionDate: document.getElementById('recf-date').value,
+        qtyConforme: qtyOk, qtyRejete: qtyRej, qtyAAjuster: qtyAdj
+    }));
+    if (qtyOk > 0 && line) {
+        const existing = appState.stockEntries.find(se => se.productId === line.productId && se.locationId === dispatchLoc && se.source === 'reception_couturiere' && !se.deleted);
+        if (existing) { existing.qtyDeposited += qtyOk; touch(existing); }
+        else appState.stockEntries.push(newRecord({
+            productId: line.productId, locationId: dispatchLoc, qtyDeposited: qtyOk, qtySold: 0, qtyReturned: 0, qtyPaid: 0,
+            depositDate: todayISO(), source: 'reception_couturiere', notes: `Réception commande ${order.ref}`
+        }));
+    }
+    const totalReceived = live(appState.subReceptions).filter(r => r.orderLineId === lineId).reduce((a, r) => a + r.qtyConforme + r.qtyRejete, 0);
+    if (totalReceived >= line.qtyOrdered) order.status = 'Reçu & Contrôlé'; else order.status = 'En cours de couture';
+    touch(order);
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ===================== 7. FOURNISSEURS & COURSES =====================
+function renderCoursesPage() {
+    return `
+    <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <h2 class="serif" style="font-size:18px;">Fournisseurs & Courses</h2>
+        <div class="flex gap-2">
+            <button class="btn btn-outline btn-sm" onclick="openSupplierModal()">+ Fournisseur</button>
+            <button class="btn btn-dark btn-sm" onclick="openShoppingModal()">+ Article à acheter</button>
+        </div>
+    </div>
+    <div class="grid g2">
+        <div class="card p3"><h4 class="serif" style="font-size:13px;margin-bottom:8px;">Fournisseurs</h4><div id="sup-list"></div></div>
+        <div class="card p3"><h4 class="serif" style="font-size:13px;margin-bottom:8px;">Liste de courses</h4><div id="shop-list"></div></div>
+    </div>`;
+}
+function after_courses() { renderSuppliersList(); renderShoppingList(); }
+function renderSuppliersList() {
+    const el = document.getElementById('sup-list'); if (!el) return;
+    el.innerHTML = live(appState.suppliers).map(s => `<div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--sand);"><strong>${s.name}</strong><br><span class="muted">${s.contact || ''}</span></div>`).join('') || '<p class="muted" style="font-size:12px;">Aucun fournisseur.</p>';
+}
+function renderShoppingList() {
+    const el = document.getElementById('shop-list'); if (!el) return;
+    el.innerHTML = live(appState.shoppingItems).map(i => `
+        <div class="flex between center" style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--sand);">
+            <span><input type="checkbox" ${i.isChecked?'checked':''} onchange="toggleShoppingItem('${i.id}')"> ${i.label} — ${i.qty} ${i.unit} <span class="muted">(${i.purchaseDate||''})</span></span>
+            <strong>${fmt((i.qty||1)*(i.unitPrice||0))}</strong>
+        </div>`).join('') || '<p class="muted" style="font-size:12px;">Liste vide.</p>';
+}
+function toggleShoppingItem(id) { const i = appState.shoppingItems.find(x => x.id === id); i.isChecked = !i.isChecked; touch(i); saveLocal(); renderAll(); }
+function openSupplierModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Nouveau Fournisseur</h3>
+        <form onsubmit="submitSupplier(event)" style="margin-top:10px;">
+            <label class="lbl">Nom</label><input class="input" id="supf-name" required style="margin-bottom:10px;">
+            <label class="lbl">Contact</label><input class="input" id="supf-contact" style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
+        </form>`);
+}
+function submitSupplier(e) {
+    e.preventDefault();
+    appState.suppliers.push(newRecord({ name: document.getElementById('supf-name').value, contact: document.getElementById('supf-contact').value }));
+    saveLocal(); closeModal(); renderAll();
+}
+function openShoppingModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Article à acheter</h3>
+        <form onsubmit="submitShopping(event)" style="margin-top:10px;">
+            <label class="lbl">Désignation</label><input class="input" id="shf-label" required style="margin-bottom:10px;">
+            <div class="grid g2" style="margin-bottom:10px;">
+                <div><label class="lbl">Quantité</label><input class="input" id="shf-qty" type="number" value="1"></div>
+                <div><label class="lbl">Unité</label><input class="input" id="shf-unit" value="Unité"></div>
+            </div>
+            <label class="lbl">Prix unitaire estimé (FCFA)</label><input class="input" id="shf-price" type="number" value="0" style="margin-bottom:10px;">
+            <label class="lbl">Date</label><input class="input" id="shf-date" type="date" value="${todayISO()}" style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
+        </form>`);
+}
+function submitShopping(e) {
+    e.preventDefault();
+    appState.shoppingItems.push(newRecord({
+        label: document.getElementById('shf-label').value, qty: parseFloat(document.getElementById('shf-qty').value) || 1,
+        unit: document.getElementById('shf-unit').value, unitPrice: parseInt(document.getElementById('shf-price').value) || 0,
+        purchaseDate: document.getElementById('shf-date').value, isChecked: false
+    }));
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ===================== 8. MARKETING =====================
+function renderMarketingPage() {
+    return `
+    <div class="flex between center" style="margin-bottom:12px;">
+        <h2 class="serif" style="font-size:18px;">Planning Marketing</h2>
+        <button class="btn btn-dark btn-sm" onclick="openMarketingModal()">+ Planifier</button>
+    </div>
+    <div id="mk-list" class="grid g2"></div>`;
+}
+function after_marketing() {
+    const el = document.getElementById('mk-list'); if (!el) return;
+    el.innerHTML = live(appState.marketingPosts).map(p => `
+        <div class="card p3"><span class="badge badge-sand">${p.platform||''}</span>
+        <h4 class="serif" style="font-size:13px;margin-top:6px;">${p.title}</h4>
+        <p class="muted" style="font-size:11px;">${p.scheduledDate||''} — ${p.status}</p></div>`).join('') || '<p class="muted">Rien de planifié.</p>';
+}
+function openMarketingModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Planifier une Publication</h3>
+        <form onsubmit="submitMarketing(event)" style="margin-top:10px;">
+            <label class="lbl">Plateforme</label><input class="input" id="mkf-platform" value="Instagram Reel" style="margin-bottom:10px;">
+            <label class="lbl">Titre</label><input class="input" id="mkf-title" required style="margin-bottom:10px;">
+            <label class="lbl">Date prévue</label><input class="input" id="mkf-date" type="date" style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Planifier</button></div>
+        </form>`);
+}
+function submitMarketing(e) {
+    e.preventDefault();
+    appState.marketingPosts.push(newRecord({ platform: document.getElementById('mkf-platform').value, title: document.getElementById('mkf-title').value, scheduledDate: document.getElementById('mkf-date').value, status: 'Idée' }));
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ===================== 9. R&D =====================
+function renderRDPage() {
+    return `
+    <div class="flex between center" style="margin-bottom:12px;">
+        <h2 class="serif" style="font-size:18px;">Carnet R&D</h2>
+        <button class="btn btn-dark btn-sm" onclick="openRDModal()">+ Nouvelle Idée</button>
+    </div>
+    <div id="rd-list" class="grid g3"></div>`;
+}
+function after_rd() {
+    const el = document.getElementById('rd-list'); if (!el) return;
+    el.innerHTML = live(appState.rdItems).map(r => `
+        <div class="card p3"><span class="badge badge-sand">${r.status}</span>
+        <h4 class="serif" style="font-size:13px;margin-top:6px;">${r.title}</h4>
+        <p class="muted" style="font-size:11px;">${r.description||''}</p></div>`).join('') || '<p class="muted">Aucun prototype en cours.</p>';
+}
+function openRDModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Nouvelle Idée Prototype</h3>
+        <form onsubmit="submitRD(event)" style="margin-top:10px;">
+            <label class="lbl">Titre</label><input class="input" id="rdf-title" required style="margin-bottom:10px;">
+            <label class="lbl">Description</label><textarea class="input" id="rdf-desc" style="margin-bottom:14px;"></textarea>
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
+        </form>`);
+}
+function submitRD(e) {
+    e.preventDefault();
+    appState.rdItems.push(newRecord({ title: document.getElementById('rdf-title').value, description: document.getElementById('rdf-desc').value, status: 'Idée' }));
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ===================== 10. PARAMÈTRES =====================
+function renderParametresPage() {
+    return `
+    <h2 class="serif" style="font-size:18px;margin-bottom:4px;">Paramètres</h2>
+    <p class="muted" style="font-size:12px;margin-bottom:16px;">Sécurité, synchronisation et gestion des données.</p>
+
+    <div class="card p4" style="margin-bottom:12px;">
+        <h4 class="serif" style="font-size:14px;">🔄 Synchronisation entre appareils</h4>
+        <p class="muted" style="font-size:11px;margin:6px 0 10px;">Choisis un code (identique sur tous tes appareils) pour fusionner tes données automatiquement.</p>
+        <label class="lbl">Code de synchronisation</label>
+        <input class="input" id="set-sync-code" value="${appMeta.syncCode || ''}" placeholder="Ex: DSANEL2026" style="text-transform:uppercase;margin-bottom:8px;">
+        <div class="flex gap-2" style="flex-wrap:wrap;">
+            <button class="btn btn-dark btn-sm" onclick="saveSyncCode()">Enregistrer le code</button>
+            <button class="btn btn-outline btn-sm" onclick="syncNow(true)">Synchroniser maintenant</button>
+        </div>
+        <p class="muted" style="font-size:10px;margin-top:8px;">Dernière synchro : ${appMeta.lastSyncAt ? new Date(appMeta.lastSyncAt).toLocaleString('fr-FR') : 'jamais'}</p>
+    </div>
+
+    <div class="card p4" style="margin-bottom:12px;">
+        <h4 class="serif" style="font-size:14px;">🛠️ Remplacement forcé (avancé, en cas de doublons)</h4>
+        <p class="muted" style="font-size:11px;margin:6px 0 10px;">La synchronisation normale FUSIONNE toujours tes données. N'utilise ceci que pour nettoyer un vrai problème — ça n'a pas de fusion, ça écrase.</p>
+        <div class="flex gap-2" style="flex-wrap:wrap;">
+            <button class="btn btn-danger btn-sm" onclick="forceReplaceRemote()">Écraser le cloud avec cet appareil</button>
+            <button class="btn btn-danger btn-sm" onclick="forceReplaceLocal()">Écraser cet appareil avec le cloud</button>
+        </div>
+    </div>
+
+    <div class="card p4" style="margin-bottom:12px;">
+        <h4 class="serif" style="font-size:14px;">🔒 Code PIN</h4>
+        <p class="muted" style="font-size:11px;margin:6px 0 10px;">${appMeta.pinEnabled ? "Le code PIN est activé — il sera demandé à chaque ouverture." : "Aucun code PIN n'est activé."}</p>
+        <div class="flex gap-2" style="flex-wrap:wrap;">
+            ${appMeta.pinEnabled ? `
+                <button class="btn btn-outline btn-sm" onclick="changePinFlow()">Changer le code</button>
+                <button class="btn btn-outline btn-sm" onclick="lockNow()">Verrouiller maintenant</button>
+                <button class="btn btn-danger btn-sm" onclick="disablePin()">Désactiver</button>
+            ` : `<button class="btn btn-dark btn-sm" onclick="setupPinFlow()">Activer un code PIN</button>`}
+        </div>
+    </div>
+
+    <div class="card p4" style="margin-bottom:12px;">
+        <h4 class="serif" style="font-size:14px;">💾 Exporter mes données (sauvegarde complète)</h4>
+        <p class="muted" style="font-size:11px;margin:6px 0 10px;">Télécharge un fichier avec tout : catalogue, dépôts, ventes, commandes, courses...</p>
+        <button class="btn btn-dark btn-sm" onclick="exportJSONBackup()">Exporter toutes les données (.json)</button>
+    </div>
+
+    <div class="card p4" style="margin-bottom:12px;">
+        <h4 class="serif" style="font-size:14px;">📂 Importer des données</h4>
+        <label class="btn btn-outline btn-sm" style="display:inline-block;margin-top:6px;">Choisir un fichier .json<input type="file" accept=".json" class="hidden" onchange="importJSONBackup(event)"></label>
+    </div>
+
+    <div class="card p4" style="border-left:3px solid #dc2626;">
+        <h4 class="serif" style="font-size:14px;">🗑️ Réinitialiser toutes les données</h4>
+        <p class="muted" style="font-size:11px;margin:6px 0 10px;">Efface définitivement toutes les données de cet appareil. Irréversible.</p>
+        <button class="btn btn-danger btn-sm" onclick="resetAllData()">Réinitialiser</button>
+    </div>`;
+}
+function saveSyncCode() {
+    const code = document.getElementById('set-sync-code').value.trim().toUpperCase();
+    if (!code) { alert("Entre un code."); return; }
+    appMeta.syncCode = code; saveLocal();
+    alert("Code enregistré. Lance une synchronisation pour récupérer/fusionner les données de ce code.");
+    syncNow(true);
+}
+function exportJSONBackup() {
+    downloadFile(`Sauvegarde_DearSanel_${todayISO()}.json`, JSON.stringify(appState, null, 2), 'application/json');
+}
+function importJSONBackup(evt) {
+    const file = evt.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const imported = JSON.parse(e.target.result);
+            appState = mergeStates(appState, imported);
+            saveLocal(); renderAll();
+            alert("Import réussi — les données ont été fusionnées avec celles déjà présentes.");
+        } catch (err) { alert("Fichier invalide."); }
+    };
+    reader.readAsText(file);
+}
+function resetAllData() {
+    if (!confirm("⚠️ Ceci efface TOUTES les données de cet appareil. Confirme ?")) return;
+    if (!confirm("Dernière confirmation : es-tu vraiment sûre ? Pense à exporter une sauvegarde avant si besoin.")) return;
+    appState = emptyState();
+    localStorage.removeItem(LS_KEY);
+    saveLocal();
+    renderAll();
+}
+function setupPinFlow() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Créer un code PIN</h3>
+        <form onsubmit="submitSetupPin(event)" style="margin-top:10px;">
+            <label class="lbl">Nouveau code (4 chiffres)</label><input class="input" id="pinf-new" maxlength="4" pattern="\\d{4}" required style="margin-bottom:10px;">
+            <label class="lbl">Confirme le code</label><input class="input" id="pinf-confirm" maxlength="4" pattern="\\d{4}" required style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Activer</button></div>
+        </form>`);
+}
+async function submitSetupPin(e) {
+    e.preventDefault();
+    const a = document.getElementById('pinf-new').value, b = document.getElementById('pinf-confirm').value;
+    if (a !== b || a.length !== 4) { alert("Les deux codes doivent correspondre (4 chiffres)."); return; }
+    appMeta.pinHash = await sha256(a); appMeta.pinEnabled = true; saveLocal();
+    closeModal(); renderAll();
+}
+function changePinFlow() { setupPinFlow(); }
+function disablePin() {
+    if (confirm("Désactiver le code PIN ?")) { appMeta.pinEnabled = false; appMeta.pinHash = ''; saveLocal(); renderAll(); }
+}
+function lockNow() { showPinScreen('Entre ton code PIN'); }
+
+// ===================== 11. COMMENT UTILISER =====================
+function renderAidePage() {
+    const items = [
+        ['🏠 Tableau de Bord', "Vue d'ensemble du mois en cours : chiffre d'affaires, bénéfice, stock par emplacement, et alertes (retouches en attente, stock dormant, avances non réconciliées)."],
+        ['🏷️ Catalogue', "Chaque création est enregistrée une seule fois ici, avec sa photo, son prix et le détail de son coût de revient (matière, main-d'œuvre, packaging). C'est la référence utilisée partout ailleurs dans l'app."],
+        ['📦 Dépôts & Ventes', "Un dépôt = une quantité d'une création envoyée à un emplacement (Atelier, Local A, Local B, Web). Tu choisis toujours une création déjà existante dans le Catalogue — tape les premières lettres pour la retrouver. C'est ici que tu déclares les ventes et les règlements."],
+        ['📊 Rapports', "Choisis une période (aujourd'hui, semaine, mois, année, ou personnalisée) pour voir le chiffre d'affaires, le bénéfice réel, la meilleure catégorie, et comparer avec la période précédente ou l'an dernier."],
+        ['🧵 Matières & BOM', "Stock de tissus et fournitures, avec prix unitaire — utilisé pour calculer automatiquement le coût des recettes de fabrication."],
+        ['🪡 Sous-traitance', "Suivi des couturières externes : avances de caisse à réconcilier, commandes avec dates, réallocation d'un modèle raté vers un autre, et contrôle qualité en 3 statuts (Conforme / Rejeté / À ajuster)."],
+        ['🛒 Fournisseurs & Courses', "Répertoire des fournisseurs et liste d'achats avec dates et prix estimés."],
+        ['📅 Marketing', "Planning des publications à venir sur les réseaux."],
+        ['💡 Carnet R&D', "Idées et prototypes en cours de test."],
+        ['⚙️ Paramètres', "Code de synchronisation entre appareils (jamais d'écrasement, toujours une fusion), code PIN, export/import de sauvegarde, réinitialisation."]
+    ];
+    return `<h2 class="serif" style="font-size:18px;margin-bottom:14px;">Comment utiliser l'application</h2>
+    ${items.map(([title, desc]) => `<div class="card p3" style="margin-bottom:10px;"><h4 class="serif" style="font-size:13px;">${title}</h4><p class="muted" style="font-size:12px;margin-top:4px;">${desc}</p></div>`).join('')}
+    <div class="card p3" style="border-left:3px solid var(--clay);margin-top:14px;">
+        <h4 class="serif" style="font-size:13px;">⚠️ À savoir sur la synchronisation</h4>
+        <p class="muted" style="font-size:12px;margin-top:4px;">La fusion combine toujours les données de tous tes appareils — rien n'est perdu automatiquement. Seule limite : un élément supprimé sur un appareil peut réapparaître si un autre appareil pas encore synchronisé le renvoie. En cas de vrai souci, utilise "Remplacement forcé" dans Paramètres.</p>
+    </div>`;
+}
+
+// ===================== EXPOSITION DES GESTIONNAIRES (onclick etc.) SUR WINDOW =====================
+window.after_catalogue = after_catalogue;
+window.after_courses = after_courses;
+window.after_couturiere = after_couturiere;
+window.after_depots = after_depots;
+window.after_marketing = after_marketing;
+window.after_matieres = after_matieres;
+window.after_rapports = after_rapports;
+window.after_rd = after_rd;
+window.addCostItemRow = addCostItemRow;
+window.addOrderLineRow = addOrderLineRow;
+window.changePinFlow = changePinFlow;
+window.closeModal = closeModal;
+window.closeMoreDrawer = closeMoreDrawer;
+window.deleteMaterial = deleteMaterial;
+window.deleteProduct = deleteProduct;
+window.disablePin = disablePin;
+window.exportCatalogueExcel = exportCatalogueExcel;
+window.exportCataloguePDF = exportCataloguePDF;
+window.exportJSONBackup = exportJSONBackup;
+window.exportRapportPDF = exportRapportPDF;
+window.filterDepositProductOptions = filterDepositProductOptions;
+window.forceReplaceLocal = forceReplaceLocal;
+window.forceReplaceRemote = forceReplaceRemote;
+window.generateBordereau = generateBordereau;
+window.handleNewCategoryInline = handleNewCategoryInline;
+window.importJSONBackup = importJSONBackup;
+window.lockNow = lockNow;
+window.navigate = navigate;
+window.onboardRecoverFromSync = onboardRecoverFromSync;
+window.onboardStartFresh = onboardStartFresh;
+window.openAdvanceModal = openAdvanceModal;
+window.openDepositModal = openDepositModal;
+window.openMarketingModal = openMarketingModal;
+window.openMaterialModal = openMaterialModal;
+window.openMoreDrawer = openMoreDrawer;
+window.openOrderModal = openOrderModal;
+window.openProductModal = openProductModal;
+window.openRDModal = openRDModal;
+window.openReallocateModal = openReallocateModal;
+window.openReceptionModal = openReceptionModal;
+window.openReconcileModal = openReconcileModal;
+window.openSaleModal = openSaleModal;
+window.openSettleModal = openSettleModal;
+window.openShoppingModal = openShoppingModal;
+window.openSubcontractorModal = openSubcontractorModal;
+window.openSupplierModal = openSupplierModal;
+window.pinKeyPress = pinKeyPress;
+window.renderCatalogueGrid = renderCatalogueGrid;
+window.renderRapportsBody = renderRapportsBody;
+window.resetAllData = resetAllData;
+window.saveSyncCode = saveSyncCode;
+window.setCompareMode = setCompareMode;
+window.setDepotFilter = setDepotFilter;
+window.setRapportPeriod = setRapportPeriod;
+window.setupPinFlow = setupPinFlow;
+window.submitAdvance = submitAdvance;
+window.submitDeposit = submitDeposit;
+window.submitMarketing = submitMarketing;
+window.submitMaterial = submitMaterial;
+window.submitOrder = submitOrder;
+window.submitProduct = submitProduct;
+window.submitRD = submitRD;
+window.submitReallocate = submitReallocate;
+window.submitReception = submitReception;
+window.submitReconcile = submitReconcile;
+window.submitSale = submitSale;
+window.submitSettle = submitSettle;
+window.submitSetupPin = submitSetupPin;
+window.submitShopping = submitShopping;
+window.submitSubcontractor = submitSubcontractor;
+window.submitSupplier = submitSupplier;
+window.syncDepositProductSelect = syncDepositProductSelect;
+window.syncNow = syncNow;
+window.toggleShoppingItem = toggleShoppingItem;
+
+})();
+</script>
+</body>
+</html>
