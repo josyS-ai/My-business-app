@@ -164,8 +164,30 @@ const LS_META_KEY = 'dearsanel_v5_meta';
 
 function freshState() {
     const ts = nowTs();
+    const gammes = [
+        newRecord({ name: 'Créations Maison (Crochet & Couture Interne)' }),
+        newRecord({ name: 'Confection Sous-traitée (Couturière Externe)' }),
+        newRecord({ name: 'Botanique & Bien-être' })
+    ];
+    const defaultGammeId = gammes[0].id;
+    const categories = SEED_DATA.categories.map(c => Object.assign({}, c, { gammeId: c.gammeId || defaultGammeId }));
+    const costTypes = [
+        newRecord({ name: 'Matière (hors BOM)', builtIn: true }),
+        newRecord({ name: 'Mon temps', builtIn: true }),
+        newRecord({ name: "Main-d'œuvre artisane", builtIn: true }),
+        newRecord({ name: 'Packaging', builtIn: true }),
+        newRecord({ name: 'Autre dépense', builtIn: true })
+    ];
+    const withdrawReasons = [
+        newRecord({ name: 'À réparer', builtIn: true }),
+        newRecord({ name: 'Vente directe', builtIn: true }),
+        newRecord({ name: 'À transformer', builtIn: true })
+    ];
     return {
-        categories: SEED_DATA.categories,
+        categories: categories,
+        gammes: gammes,
+        costTypes: costTypes,
+        withdrawReasons: withdrawReasons,
         locations: SEED_DATA.locations,
         materials: [],
         products: SEED_DATA.products,
@@ -184,16 +206,17 @@ function freshState() {
         rdItems: [],
         collections: [],
         productCollections: [],
-        collectionInvestments: []
+        collectionInvestments: [],
+        withdrawals: []
     };
 }
 function emptyState() {
     return {
-        categories: [], locations: [], materials: [], products: [], stockEntries: [],
+        categories: [], gammes: [], costTypes: [], withdrawReasons: [], locations: [], materials: [], products: [], stockEntries: [],
         sales: [], loans: [], subcontractors: [], subAdvances: [], subOrders: [],
         subOrderLines: [], subReceptions: [], suppliers: [], shoppingItems: [],
         marketingPosts: [], marketingCaptions: [], rdItems: [], collections: [],
-        productCollections: [], collectionInvestments: []
+        productCollections: [], collectionInvestments: [], withdrawals: []
     };
 }
 const COLLECTION_KEYS = Object.keys(emptyState());
@@ -500,6 +523,13 @@ function getCategory(id) { return appState.categories.find(c => c.id === id); }
 function getLocation(id) { return appState.locations.find(l => l.id === id); }
 function getProduct(id) { return appState.products.find(p => p.id === id); }
 function stockEntryStock(se) { return Math.max(0, (se.qtyDeposited || 0) - (se.qtySold || 0) - (se.qtyReturned || 0)); }
+function effectivePublicPrice(se, product) { return (se && se.pricePublicOverride) || (product ? product.pricePublic : 0); }
+function suggestedPublicPriceFor(product, location) {
+    if (product && product.desiredNetPrice && location && location.commissionPct < 100) {
+        return Math.round(product.desiredNetPrice / (1 - (location.commissionPct || 0) / 100));
+    }
+    return product ? product.pricePublic : 0;
+}
 function unpaidQtyOf(se) { return Math.max(0, (se.qtySold || 0) - (se.qtyPaid || 0)); }
 function priceNet(pricePublic, commissionPct) { return Math.round((pricePublic || 0) * (1 - (commissionPct || 0) / 100)); }
 function costPriceOf(product) {
@@ -606,11 +636,11 @@ function computeMetrics(start, end) {
         caBrut += brut; caNet += net; cout += cost; benefice += ben;
         if (!s.isPaid) creances += net;
         const catName = cat ? cat.name : 'Autre';
-        byCategory[catName] = byCategory[catName] || { qty: 0, benefice: 0, caNet: 0 };
-        byCategory[catName].qty += s.qty; byCategory[catName].benefice += ben; byCategory[catName].caNet += net;
+        byCategory[catName] = byCategory[catName] || { qty: 0, benefice: 0, caNet: 0, cout: 0 };
+        byCategory[catName].qty += s.qty; byCategory[catName].benefice += ben; byCategory[catName].caNet += net; byCategory[catName].cout += cost;
         const locName = loc ? loc.name : '—';
-        byLocation[locName] = byLocation[locName] || { qty: 0, benefice: 0, caNet: 0 };
-        byLocation[locName].qty += s.qty; byLocation[locName].benefice += ben; byLocation[locName].caNet += net;
+        byLocation[locName] = byLocation[locName] || { qty: 0, benefice: 0, caNet: 0, cout: 0 };
+        byLocation[locName].qty += s.qty; byLocation[locName].benefice += ben; byLocation[locName].caNet += net; byLocation[locName].cout += cost;
     });
     return { caBrut, caNet, cout, benefice, creances, byCategory, byLocation, salesCount: sales.length };
 }
@@ -739,24 +769,51 @@ function renderDashboardPage() {
 }
 
 // ===================== 2. CATALOGUE =====================
+let catShowArchived = false;
+let catGammeFilter = 'Toutes';
+let expandedCatalogueId = null;
+
 function renderCataloguePage() {
     return `
     <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <div><h2 class="serif" style="font-size:18px;">Catalogue des Créations</h2><p class="muted" style="font-size:11px;">Fiches produits, coût de revient détaillé, catégories</p></div>
         <div class="flex gap-2">
+            <button class="btn btn-outline btn-sm" onclick="openGammesModal()">🗂️ Gammes & Catégories</button>
             <button class="btn btn-outline btn-sm" onclick="exportCatalogueExcel()">📊 Excel</button>
             <button class="btn btn-outline btn-sm" onclick="exportCataloguePDF()">📄 PDF</button>
             <button class="btn btn-dark btn-sm" onclick="openProductModal()">+ Nouvelle Création</button>
         </div>
     </div>
-    <div class="flex gap-2" style="margin-bottom:14px;flex-wrap:wrap;">
-        <input type="text" id="cat-search" class="input" style="max-width:220px;" placeholder="Rechercher..." oninput="renderCatalogueGrid()">
-        <select id="cat-filter-cat" class="input" style="max-width:180px;" onchange="renderCatalogueGrid()">${categorySelectOptionsAll()}</select>
+
+    <div class="flex gap-2" style="margin-bottom:10px;overflow-x:auto;">
+        <button class="btn btn-sm ${catGammeFilter==='Toutes'?'btn-dark':'btn-outline'}" onclick="setCatGamme('Toutes')">Toutes les gammes</button>
+        ${live(appState.gammes).map(g => `<button class="btn btn-sm ${catGammeFilter===g.id?'btn-dark':'btn-outline'}" onclick="setCatGamme('${g.id}')">${g.name}</button>`).join('')}
     </div>
+
+    <div class="card p3" style="margin-bottom:14px;">
+        <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:8px;">
+            <input type="text" id="cat-search" class="input" style="max-width:200px;" placeholder="Rechercher..." oninput="renderCatalogueGrid()">
+            <select id="cat-filter-cat" class="input" style="max-width:180px;" onchange="renderCatalogueGrid()">${categorySelectOptionsForGamme(catGammeFilter)}</select>
+            <input type="number" id="cat-price-min" class="input" style="max-width:110px;" placeholder="Prix min" oninput="renderCatalogueGrid()">
+            <input type="number" id="cat-price-max" class="input" style="max-width:110px;" placeholder="Prix max" oninput="renderCatalogueGrid()">
+        </div>
+        <div class="flex gap-2 center" style="flex-wrap:wrap;">
+            <span class="lbl" style="margin:0;">Intégré entre</span>
+            <input type="date" id="cat-date-min" class="input" style="max-width:150px;" onchange="renderCatalogueGrid()">
+            <span class="muted" style="font-size:11px;">et</span>
+            <input type="date" id="cat-date-max" class="input" style="max-width:150px;" onchange="renderCatalogueGrid()">
+            <span style="flex:1;"></span>
+            <button class="btn btn-sm ${catShowArchived?'btn-dark':'btn-outline'}" onclick="toggleArchivedView()">${catShowArchived ? '📂 Voir le catalogue actif' : '🗄️ Voir les archives'}</button>
+        </div>
+    </div>
+
     <div id="cat-grid" class="grid g4"></div>`;
 }
-function categorySelectOptionsAll() {
-    return `<option value="Toutes">Toutes catégories</option>` + live(appState.categories).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+function setCatGamme(id) { catGammeFilter = id; renderPage('catalogue'); }
+function toggleArchivedView() { catShowArchived = !catShowArchived; renderPage('catalogue'); }
+function categorySelectOptionsForGamme(gammeId) {
+    const cats = gammeId === 'Toutes' ? live(appState.categories) : live(appState.categories).filter(c => c.gammeId === gammeId);
+    return `<option value="Toutes">Toutes catégories</option>` + cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 }
 function after_catalogue() { renderCatalogueGrid(); }
 function renderCatalogueGrid() {
@@ -764,32 +821,59 @@ function renderCatalogueGrid() {
     if (!grid) return;
     const search = (document.getElementById('cat-search')?.value || '').toLowerCase();
     const catF = document.getElementById('cat-filter-cat')?.value || 'Toutes';
-    const items = live(appState.products).filter(p =>
-        (p.name.toLowerCase().includes(search) || p.ref.toLowerCase().includes(search)) &&
-        (catF === 'Toutes' || p.categoryId === catF)
-    );
+    const priceMin = parseFloat(document.getElementById('cat-price-min')?.value);
+    const priceMax = parseFloat(document.getElementById('cat-price-max')?.value);
+    const dateMin = document.getElementById('cat-date-min')?.value;
+    const dateMax = document.getElementById('cat-date-max')?.value;
+
+    const source = catShowArchived ? (appState.products || []).filter(p => p.deleted) : live(appState.products);
+    const items = source.filter(p => {
+        const cat = getCategory(p.categoryId);
+        if (catGammeFilter !== 'Toutes' && (!cat || cat.gammeId !== catGammeFilter)) return false;
+        if (catF !== 'Toutes' && p.categoryId !== catF) return false;
+        if (!(p.name.toLowerCase().includes(search) || p.ref.toLowerCase().includes(search))) return false;
+        if (!isNaN(priceMin) && p.pricePublic < priceMin) return false;
+        if (!isNaN(priceMax) && p.pricePublic > priceMax) return false;
+        if (dateMin && p.createdAt < dateMin) return false;
+        if (dateMax && p.createdAt > dateMax) return false;
+        return true;
+    });
+
     grid.innerHTML = items.map(p => {
         const cat = getCategory(p.categoryId);
         const cost = costPriceOf(p);
         const stock = live(appState.stockEntries).filter(se => se.productId === p.id).reduce((a, se) => a + stockEntryStock(se), 0);
+        const expanded = expandedCatalogueId === p.id;
         return `
         <div class="card p3">
             <div style="width:100%;height:120px;border-radius:8px;overflow:hidden;margin-bottom:8px;position:relative;">
                 <img src="${productImage(p)}" style="width:100%;height:100%;object-fit:cover;">
                 <span style="position:absolute;top:6px;right:6px;background:rgba(26,26,26,.75);color:#fff;font-size:9px;padding:2px 6px;border-radius:4px;">${p.ref}</span>
+                ${catShowArchived ? `<span style="position:absolute;top:6px;left:6px;background:rgba(220,38,38,.85);color:#fff;font-size:9px;padding:2px 6px;border-radius:4px;">Archivé</span>` : ''}
             </div>
-            <p class="muted" style="font-size:9px;text-transform:uppercase;">${cat ? cat.name : ''}</p>
-            <h4 class="serif" style="font-size:13px;">${p.name}</h4>
-            <p style="font-size:13px;font-weight:600;margin-top:2px;">${fmt(p.pricePublic)}</p>
-            <p class="muted" style="font-size:10px;">Stock total : ${stock}</p>
-            ${cost > 0 ? `<p style="font-size:10px;color:var(--sage-dark);">Coût revient : ${fmt(cost)}</p>` : `<p style="font-size:10px;color:var(--clay);">Coût de revient non détaillé</p>`}
-            <div class="flex gap-2" style="margin-top:8px;">
-                <button class="btn btn-outline btn-sm" onclick="openProductModal('${p.id}')">✏️ Modifier</button>
-                <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">🗑️</button>
+            <div style="cursor:pointer;" onclick="toggleCatalogueActions('${p.id}')">
+                <p class="muted" style="font-size:9px;text-transform:uppercase;">${cat ? cat.name : ''}</p>
+                <h4 class="serif" style="font-size:13px;">${p.name}</h4>
+                <p style="font-size:13px;font-weight:600;margin-top:2px;">${fmt(p.pricePublic)}</p>
+                <p class="muted" style="font-size:10px;">Stock total : ${stock} · Ajouté le ${p.createdAt || '—'}</p>
+                ${p.desiredNetPrice ? `<p style="font-size:10px;color:var(--warmgray);">Net souhaité : ${fmt(p.desiredNetPrice)}</p>` : ''}
+                ${cost > 0 ? `<p style="font-size:10px;color:var(--sage-dark);">Coût revient : ${fmt(cost)}</p>` : `<p style="font-size:10px;color:var(--clay);">Coût de revient non détaillé</p>`}
             </div>
+            ${expanded ? `
+            <div class="flex gap-2" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--sand);">
+                ${catShowArchived ? `
+                    <button class="btn btn-sage btn-sm" onclick="restoreProduct('${p.id}')">↩️ Restaurer</button>
+                ` : `
+                    <button class="btn btn-outline btn-sm" onclick="openProductModal('${p.id}')">✏️ Modifier</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}')">🗄️ Archiver</button>
+                `}
+            </div>` : ''}
         </div>`;
-    }).join('') || '<p class="muted">Aucune création trouvée.</p>';
+    }).join('') || `<p class="muted">${catShowArchived ? 'Aucun article archivé.' : 'Aucune création trouvée.'}</p>`;
 }
+function toggleCatalogueActions(id) { expandedCatalogueId = (expandedCatalogueId === id) ? null : id; renderCatalogueGrid(); }
+
+// ---- Gammes & catégories ----
 function categoryOptionsHTML(selectedId) {
     return live(appState.categories).map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${c.name}</option>`).join('') + `<option value="__new__">+ Nouvelle catégorie...</option>`;
 }
@@ -798,44 +882,124 @@ function handleNewCategoryInline(selectId) {
     if (sel.value === '__new__') {
         const name = prompt("Nom de la nouvelle catégorie :");
         if (name && name.trim()) {
-            const cat = newRecord({ name: name.trim() });
+            const gammeId = (catGammeFilter !== 'Toutes') ? catGammeFilter : (live(appState.gammes)[0] ? live(appState.gammes)[0].id : null);
+            const cat = newRecord({ name: name.trim(), gammeId });
             appState.categories.push(cat);
             sel.innerHTML = categoryOptionsHTML(cat.id);
         } else { sel.selectedIndex = 0; }
     }
 }
-const COST_TYPE_LABELS = { matiere: 'Matière (hors BOM)', main_oeuvre_interne: 'Mon temps', main_oeuvre_artisane: "Main-d'œuvre artisane", packaging: 'Packaging', autre: 'Autre dépense' };
+function openGammesModal() {
+    openModal(`
+        <h3 class="serif" style="font-size:16px;">Gammes & Catégories</h3>
+        <p class="muted" style="font-size:11px;margin:6px 0 12px;">Une gamme regroupe plusieurs catégories (ex: séparer tes créations crochet, la confection en sous-traitance, et tes produits botaniques).</p>
+        <div id="gammes-list"></div>
+        <div class="flex gap-2" style="margin-top:12px;">
+            <input class="input" id="gm-new-name" placeholder="Nom de la nouvelle gamme">
+            <button class="btn btn-dark btn-sm" onclick="submitNewGamme()">+ Ajouter</button>
+        </div>
+        <div class="flex between" style="margin-top:16px;"><button class="btn btn-outline" onclick="closeModal()">Fermer</button></div>
+    `);
+    renderGammesList();
+}
+function renderGammesList() {
+    const el = document.getElementById('gammes-list');
+    if (!el) return;
+    const gammes = live(appState.gammes);
+    const orphanCats = live(appState.categories).filter(c => !c.gammeId || !gammes.find(g => g.id === c.gammeId));
+    el.innerHTML = gammes.map(g => {
+        const cats = live(appState.categories).filter(c => c.gammeId === g.id);
+        return `<div class="card p3" style="margin-bottom:8px;">
+            <strong style="font-size:12px;">${g.name}</strong>
+            ${cats.map(c => `<div class="flex between center" style="font-size:11px;padding:3px 0;">
+                <span>${c.name}</span>
+                <select class="input" style="max-width:160px;padding:4px;" onchange="reassignCategoryGamme('${c.id}', this.value)">
+                    ${gammes.map(g2 => `<option value="${g2.id}" ${g2.id===g.id?'selected':''}>${g2.name}</option>`).join('')}
+                </select>
+            </div>`).join('') || '<p class="muted" style="font-size:11px;">Aucune catégorie.</p>'}
+        </div>`;
+    }).join('') + (orphanCats.length ? `<div class="card p3" style="border-left:3px solid var(--clay);">
+        <strong style="font-size:12px;">Catégories sans gamme</strong>
+        ${orphanCats.map(c => `<div class="flex between center" style="font-size:11px;padding:3px 0;">
+            <span>${c.name}</span>
+            <select class="input" style="max-width:160px;padding:4px;" onchange="reassignCategoryGamme('${c.id}', this.value)">
+                <option value="">— choisir —</option>
+                ${gammes.map(g2 => `<option value="${g2.id}">${g2.name}</option>`).join('')}
+            </select>
+        </div>`).join('')}
+    </div>` : '');
+}
+function reassignCategoryGamme(catId, gammeId) {
+    const c = appState.categories.find(x => x.id === catId);
+    c.gammeId = gammeId; touch(c);
+    saveLocal(); renderGammesList();
+}
+function submitNewGamme() {
+    const name = document.getElementById('gm-new-name').value.trim();
+    if (!name) return;
+    appState.gammes.push(newRecord({ name }));
+    saveLocal(); renderGammesList();
+    document.getElementById('gm-new-name').value = '';
+}
+
+// ---- Types de coût ----
+function costTypeOptionsHTML(selectedId) {
+    return live(appState.costTypes).map(t => `<option value="${t.id}" ${t.id === selectedId ? 'selected' : ''}>${t.name}</option>`).join('') + `<option value="__new__">+ Nouveau type...</option>`;
+}
+function handleNewCostTypeInline(selectEl) {
+    if (selectEl.value === '__new__') {
+        const name = prompt("Nom du nouveau type de coût (ex: Transport, Location machine...) :");
+        if (name && name.trim()) {
+            const t = newRecord({ name: name.trim(), builtIn: false });
+            appState.costTypes.push(t);
+            const opts = costTypeOptionsHTML(t.id);
+            document.querySelectorAll('.ci-type').forEach(sel => { const cur = sel.value; sel.innerHTML = opts; sel.value = (cur === '__new__') ? t.id : cur; });
+            selectEl.value = t.id;
+        } else { selectEl.selectedIndex = 0; }
+    }
+}
+function costTypeName(id) { const t = appState.costTypes.find(x => x.id === id); return t ? t.name : 'Autre'; }
+
 function costItemsRowsHTML(items) {
     return (items || []).filter(i => !i.deleted).map(ci => `
         <tr data-ci-id="${ci.id}">
-            <td><select class="input ci-type">${Object.entries(COST_TYPE_LABELS).map(([k, l]) => `<option value="${k}" ${k === ci.costType ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+            <td><select class="input ci-type" onchange="handleNewCostTypeInline(this)">${costTypeOptionsHTML(ci.costTypeId)}</select></td>
             <td><input class="input ci-label" value="${ci.label || ''}" placeholder="Ex: Maman - finitions"></td>
             <td><input class="input ci-qty" type="number" step="0.1" value="${ci.quantity || 1}" style="width:60px;"></td>
             <td><input class="input ci-rate" type="number" value="${ci.unitRate || 0}" style="width:80px;"></td>
-            <td style="text-align:right;">${fmt((ci.quantity || 0) * (ci.unitRate || 0))}</td>
-            <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove();recalcCostTotal();">✕</button></td>
         </tr>`).join('');
 }
 function addCostItemRow() {
     const tbody = document.getElementById('ci-tbody');
     const tr = document.createElement('tr');
     tr.innerHTML = `
-        <td><select class="input ci-type">${Object.entries(COST_TYPE_LABELS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></td>
+        <td><select class="input ci-type" onchange="handleNewCostTypeInline(this)">${costTypeOptionsHTML()}</select></td>
         <td><input class="input ci-label" placeholder="Ex: Sachet satin + étiquette"></td>
         <td><input class="input ci-qty" type="number" step="0.1" value="1" style="width:60px;"></td>
         <td><input class="input ci-rate" type="number" value="0" style="width:80px;"></td>
-        <td style="text-align:right;">—</td>
-        <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">✕</button></td>`;
+        <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove();recalcCostTotal();">✕</button></td>`;
     tbody.appendChild(tr);
+}
+function recalcCostTotal() {
+    let total = 0;
+    document.querySelectorAll('#ci-tbody tr').forEach(tr => {
+        const qty = parseFloat(tr.querySelector('.ci-qty').value) || 0;
+        const rate = parseFloat(tr.querySelector('.ci-rate').value) || 0;
+        total += qty * rate;
+    });
+    const el = document.getElementById('ci-total');
+    if (el) el.innerText = fmt(total);
 }
 function readCostItemsFromForm() {
     return Array.from(document.querySelectorAll('#ci-tbody tr')).map(tr => newRecord({
-        costType: tr.querySelector('.ci-type').value,
+        costTypeId: tr.querySelector('.ci-type').value,
         label: tr.querySelector('.ci-label').value,
         quantity: parseFloat(tr.querySelector('.ci-qty').value) || 0,
         unitRate: parseFloat(tr.querySelector('.ci-rate').value) || 0
     }));
 }
+
 function openProductModal(id) {
     const editing = !!id;
     const p = editing ? getProduct(id) : null;
@@ -850,14 +1014,24 @@ function openProductModal(id) {
             <input type="file" id="pf-img-file" accept="image/*" class="input" style="margin-bottom:6px;">
             <input type="url" id="pf-img-url" class="input" value="${p ? (p.image || '') : ''}" placeholder="https://..." style="margin-bottom:10px;">
             <label class="lbl">Prix Public (FCFA)</label>
-            <input class="input" id="pf-price" type="number" value="${p ? p.pricePublic : ''}" required style="margin-bottom:14px;">
+            <input class="input" id="pf-price" type="number" value="${p ? p.pricePublic : ''}" required style="margin-bottom:10px;">
+            <label class="lbl">Prix net souhaité après commission (FCFA) — optionnel</label>
+            <input class="input" id="pf-net-desired" type="number" value="${p ? (p.desiredNetPrice || '') : ''}" placeholder="Ex: 60000 — le prix public sera calculé au dépôt selon la commission de la boutique" style="margin-bottom:10px;">
+            <label class="lbl">Date d'intégration au catalogue</label>
+            <input class="input" id="pf-created" type="date" value="${p ? (p.createdAt || todayISO()) : todayISO()}" style="margin-bottom:14px;">
 
-            <label class="lbl" style="margin-bottom:6px;">Lignes de coût de revient (matière hors BOM, main-d'œuvre, packaging, autre)</label>
+            <label class="lbl" style="margin-bottom:6px;">Lignes de coût de revient</label>
             <table style="width:100%;font-size:11px;margin-bottom:6px;">
-                <thead><tr><th>Type</th><th>Libellé</th><th>Qté</th><th>Taux</th><th>Total</th><th></th></tr></thead>
-                <tbody id="ci-tbody">${p ? costItemsRowsHTML(p.costItems) : ''}</tbody>
+                <thead><tr><th>Type</th><th>Libellé</th><th>Qté</th><th>Taux</th><th></th></tr></thead>
+                <tbody id="ci-tbody" oninput="recalcCostTotal()">${p ? costItemsRowsHTML(p.costItems) : ''}</tbody>
             </table>
-            <button type="button" class="btn btn-outline btn-sm" onclick="addCostItemRow()" style="margin-bottom:14px;">+ Ajouter une ligne de coût</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addCostItemRow()" style="margin-bottom:8px;">+ Ajouter une ligne de coût</button>
+            <div class="flex between" style="font-size:12px;font-weight:600;margin-bottom:14px;padding:8px;background:var(--cream);border-radius:8px;">
+                <span>Coût de revient total</span><span id="ci-total">${p ? fmt(costPriceOf(p)) : '0 FCFA'}</span>
+            </div>
+
+            <label class="lbl">Notes</label>
+            <textarea class="input" id="pf-notes" style="margin-bottom:14px;">${p ? (p.notes || '') : ''}</textarea>
 
             <div class="flex between" style="margin-top:16px;">
                 <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
@@ -870,6 +1044,9 @@ function submitProduct(e, id) {
     const name = document.getElementById('pf-name').value;
     const categoryId = document.getElementById('pf-cat').value;
     const pricePublic = parseInt(document.getElementById('pf-price').value) || 0;
+    const desiredNetPrice = parseInt(document.getElementById('pf-net-desired').value) || 0;
+    const createdAt = document.getElementById('pf-created').value || todayISO();
+    const notes = document.getElementById('pf-notes').value;
     const urlImg = document.getElementById('pf-img-url').value;
     const costItems = readCostItemsFromForm();
     const fileInput = document.getElementById('pf-img-file');
@@ -877,16 +1054,16 @@ function submitProduct(e, id) {
     const save = (base64) => {
         if (id) {
             const p = getProduct(id);
-            p.name = name; p.categoryId = categoryId; p.pricePublic = pricePublic;
+            p.name = name; p.categoryId = categoryId; p.pricePublic = pricePublic; p.desiredNetPrice = desiredNetPrice; p.createdAt = createdAt; p.notes = notes;
             if (base64) p.image = base64; else if (urlImg) p.image = urlImg;
             p.costItems = costItems;
             touch(p);
         } else {
-            const nextNum = live(appState.products).length + 1;
+            const nextNum = (appState.products || []).length + 1;
             appState.products.push(newRecord({
                 ref: `CREA-${String(nextNum).padStart(3, '0')}`, name, categoryId,
-                image: base64 || urlImg || '', pricePublic, costItems, recipe: [],
-                createdAt: todayISO(), isActive: true
+                image: base64 || urlImg || '', pricePublic, desiredNetPrice, costItems, recipe: [],
+                createdAt, notes, isActive: true
             }));
         }
         saveLocal(); closeModal(); renderAll();
@@ -898,16 +1075,20 @@ function submitProduct(e, id) {
     } else save(null);
 }
 function deleteProduct(id) {
-    if (confirm("Archiver cette création ? (elle n'apparaîtra plus mais l'historique est conservé)")) {
-        softDelete('products', id); saveLocal(); renderAll();
+    if (confirm("Archiver cette création ? Elle sortira du catalogue actif mais restera consultable dans les archives, avec tout son historique.")) {
+        softDelete('products', id); saveLocal(); expandedCatalogueId = null; renderAll();
     }
 }
+function restoreProduct(id) {
+    const p = appState.products.find(x => x.id === id);
+    if (p) { p.deleted = false; touch(p); saveLocal(); expandedCatalogueId = null; renderAll(); }
+}
 function exportCatalogueExcel() {
-    let csv = "Réf;Nom;Catégorie;Prix Public;Coût Revient;Marge %\n";
+    let csv = "Réf;Nom;Catégorie;Prix Public;Coût Revient;Marge %;Date d'intégration\n";
     live(appState.products).forEach(p => {
         const cat = getCategory(p.categoryId);
         const cost = costPriceOf(p);
-        csv += `${p.ref};${p.name};${cat ? cat.name : ''};${p.pricePublic};${cost};${marginPct(p.pricePublic, 0, cost)}\n`;
+        csv += `${p.ref};${p.name};${cat ? cat.name : ''};${p.pricePublic};${cost};${marginPct(p.pricePublic, 0, cost)};${p.createdAt || ''}\n`;
     });
     downloadFile('Catalogue_DearSanel.csv', csv, 'text/csv;charset=utf-8;');
 }
@@ -920,9 +1101,9 @@ function downloadFile(filename, content, mime) {
 function exportCataloguePDF() {
     const rows = live(appState.products).map(p => {
         const cat = getCategory(p.categoryId);
-        return `<tr><td><img src="${productImage(p)}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td>${cat ? cat.name : ''}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td></tr>`;
+        return `<tr><td><img src="${productImage(p)}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td>${cat ? cat.name : ''}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td><td>${p.createdAt||''}</td></tr>`;
     }).join('');
-    printHTML(`<h2>Dear San'el — Catalogue des Créations</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Nom</th><th>Catégorie</th><th>Prix Public</th></tr>${rows}</table>`);
+    printHTML(`<h2>Dear San'el — Catalogue des Créations</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Nom</th><th>Catégorie</th><th>Prix Public</th><th>Ajouté le</th></tr>${rows}</table>`);
 }
 function printHTML(innerHTML) {
     const w = window.open('', '_blank');
@@ -930,61 +1111,152 @@ function printHTML(innerHTML) {
     w.document.close(); w.focus();
     setTimeout(() => w.print(), 400);
 }
-
 // ===================== 3. DÉPÔTS & VENTES =====================
+let depotLocFilter = 'Tous';
+let depotViewMode = 'liste'; // 'liste' | 'categorie'
+
 function renderDepotsPage() {
+    const pendingWithdrawals = live(appState.withdrawals).filter(w => w.status === 'En attente');
     return `
     <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <div><h2 class="serif" style="font-size:18px;">Dépôts & Ventes</h2><p class="muted" style="font-size:11px;">Chaque dépôt pointe vers une création déjà cataloguée</p></div>
-        <button class="btn btn-dark btn-sm" onclick="openDepositModal()">+ Nouveau Dépôt</button>
-    </div>
-    <div class="flex gap-2" style="margin-bottom:12px;overflow-x:auto;">
-        <button class="btn btn-sm ${depotLocFilter==='Tous'?'btn-dark':'btn-outline'}" onclick="setDepotFilter('Tous')">Tous</button>
-        ${live(appState.locations).map(l => `<button class="btn btn-sm ${depotLocFilter===l.id?'btn-dark':'btn-outline'}" onclick="setDepotFilter('${l.id}')">${l.name}</button>`).join('')}
-    </div>
-    <div class="card" style="overflow-x:auto;">
-        <table><thead><tr><th>Photo</th><th>Création</th><th>Emplacement</th><th>Stock</th><th>Prix Public</th><th>Prix Net</th><th>Statut</th><th>Date dépôt</th><th></th></tr></thead>
-        <tbody id="depots-tbody"></tbody></table>
-    </div>
-    <div class="card p3 flex between center" style="margin-top:14px;flex-wrap:wrap;gap:10px;">
-        <div><h4 class="serif" style="font-size:13px;">Bordereau de dépôt PDF</h4><p class="muted" style="font-size:11px;">Avec photos des articles</p></div>
         <div class="flex gap-2">
-            <select id="bordereau-loc" class="input">${live(appState.locations).filter(l => l.type !== 'atelier_central').map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select>
-            <button class="btn btn-outline btn-sm" onclick="generateBordereau()">📄 Générer</button>
+            <button class="btn btn-outline btn-sm" onclick="openNewLocationModal()">+ Point de Vente</button>
+            <button class="btn btn-dark btn-sm" onclick="openDepositModal()">+ Nouveau Dépôt</button>
+        </div>
+    </div>
+
+    ${pendingWithdrawals.length ? `
+    <div class="card p3" style="border-left:3px solid var(--clay);margin-bottom:14px;">
+        <h4 class="serif" style="font-size:13px;margin-bottom:8px;">📤 Articles retirés en attente (${pendingWithdrawals.length})</h4>
+        <div id="withdrawals-pending"></div>
+    </div>` : ''}
+
+    <div class="flex between center" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+        <div class="flex gap-2" style="overflow-x:auto;">
+            <button class="btn btn-sm ${depotLocFilter==='Tous'?'btn-dark':'btn-outline'}" onclick="setDepotFilter('Tous')">Tous</button>
+            ${live(appState.locations).map(l => `<button class="btn btn-sm ${depotLocFilter===l.id?'btn-dark':'btn-outline'}" onclick="setDepotFilter('${l.id}')">${l.name}</button>`).join('')}
+        </div>
+        <div class="flex gap-2">
+            <button class="btn btn-sm ${depotViewMode==='liste'?'btn-dark':'btn-outline'}" onclick="setDepotView('liste')">📋 Liste</button>
+            <button class="btn btn-sm ${depotViewMode==='categorie'?'btn-dark':'btn-outline'}" onclick="setDepotView('categorie')">🗂️ Par catégorie</button>
+        </div>
+    </div>
+
+    <div id="depots-container"></div>
+
+    <div class="card p3" style="margin-top:14px;">
+        <h4 class="serif" style="font-size:13px;">📄 Générateur de Bordereau PDF officiel</h4>
+        <p class="muted" style="font-size:11px;margin:4px 0 10px;">Téléchargez le récapitulatif signé des pièces en dépôt, avec photos des articles.</p>
+        <div class="flex gap-2 center" style="flex-wrap:wrap;">
+            <select id="bordereau-loc" class="input" style="max-width:220px;">${live(appState.locations).filter(l => l.type !== 'atelier_central').map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select>
+            <select id="bordereau-mode" class="input" style="max-width:220px;" onchange="toggleBordereauDate()">
+                <option value="tout">Tout le stock actuellement déposé</option>
+                <option value="jour">Uniquement un jour précis de dépôt</option>
+            </select>
+            <input type="date" id="bordereau-date" class="input hidden" style="max-width:160px;" value="${todayISO()}">
+            <button class="btn btn-outline btn-sm" onclick="generateBordereau()">Télécharger PDF</button>
         </div>
     </div>`;
 }
-let depotLocFilter = 'Tous';
-function setDepotFilter(v) { depotLocFilter = v; renderDepotsTable(); }
-function after_depots() { renderDepotsTable(); }
-function renderDepotsTable() {
-    const tbody = document.getElementById('depots-tbody');
-    if (!tbody) return;
+function toggleBordereauDate() {
+    const mode = document.getElementById('bordereau-mode').value;
+    document.getElementById('bordereau-date').classList.toggle('hidden', mode !== 'jour');
+}
+function setDepotFilter(v) { depotLocFilter = v; renderDepotsContainer(); }
+function setDepotView(v) { depotViewMode = v; renderDepotsContainer(); }
+function after_depots() { renderDepotsContainer(); renderWithdrawalsPending(); }
+
+function renderDepotsContainer() {
+    const container = document.getElementById('depots-container');
+    if (!container) return;
+    container.innerHTML = depotViewMode === 'liste' ? depotsListHTML() : depotsByCategoryHTML();
+}
+
+function depotsListHTML() {
     const entries = live(appState.stockEntries).filter(se => depotLocFilter === 'Tous' || se.locationId === depotLocFilter);
-    tbody.innerHTML = entries.map(se => {
+    const rows = entries.map(se => {
         const p = getProduct(se.productId);
         if (!p) return '';
         const loc = getLocation(se.locationId);
         const stock = stockEntryStock(se);
         const label = stockStatusLabel(se);
         const unpaid = unpaidQtyOf(se);
+        const pubPrice = effectivePublicPrice(se, p);
         return `<tr>
             <td><img src="${productImage(p)}" class="thumb" style="width:36px;height:36px;"></td>
             <td>${p.name}<br><span class="mono muted" style="font-size:9px;">${p.ref}</span></td>
             <td class="muted">${loc ? loc.name : ''}</td>
             <td class="mono">${stock} / ${se.qtyDeposited}</td>
-            <td class="mono">${fmt(p.pricePublic)}</td>
-            <td class="mono" style="color:var(--sage-dark);">${fmt(priceNet(p.pricePublic, loc ? loc.commissionPct : 0))}</td>
+            <td class="mono">${fmt(pubPrice)}</td>
+            <td class="mono" style="color:var(--sage-dark);">${fmt(priceNet(pubPrice, loc ? loc.commissionPct : 0))}</td>
             <td><span class="badge ${statusBadgeClass(label)}">${label}</span>${unpaid > 0 ? `<div style="font-size:9px;color:var(--clay);">${unpaid} non réglé</div>` : ''}${isDormant(se) ? `<div style="font-size:9px;color:var(--clay);">Dort > 45j</div>` : ''}</td>
             <td class="muted" style="font-size:11px;">${se.depositDate || ''}</td>
             <td style="white-space:nowrap;">
                 ${stock > 0 ? `<button class="btn btn-sage btn-sm" onclick="openSaleModal('${se.id}')">Vendre</button>` : ''}
                 ${unpaid > 0 ? `<button class="btn btn-outline btn-sm" onclick="openSettleModal('${se.id}')">Régler</button>` : ''}
+                ${(se.qtySold || 0) > 0 ? `<button class="btn btn-outline btn-sm" onclick="openSaleHistoryModal('${se.id}')">Ventes</button>` : ''}
+                ${stock > 0 && loc && loc.type !== 'atelier_central' ? `<button class="btn btn-outline btn-sm" onclick="openWithdrawModal('${se.id}')">Retirer</button>` : ''}
             </td>
         </tr>`;
     }).join('') || '<tr><td colspan="9" class="muted" style="text-align:center;padding:20px;">Aucun dépôt.</td></tr>';
+    return `<div class="card" style="overflow-x:auto;">
+        <table><thead><tr><th>Photo</th><th>Création</th><th>Emplacement</th><th>Stock</th><th>Prix Public</th><th>Prix Net</th><th>Statut</th><th>Date dépôt</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table></div>`;
 }
 
+function depotsByCategoryHTML() {
+    const entries = live(appState.stockEntries).filter(se => depotLocFilter === 'Tous' || se.locationId === depotLocFilter);
+    const byCat = {};
+    let totalValuePublic = 0, totalValueCost = 0;
+    entries.forEach(se => {
+        const p = getProduct(se.productId);
+        if (!p) return;
+        const stock = stockEntryStock(se);
+        if (stock <= 0) return;
+        const cat = getCategory(p.categoryId);
+        const catName = cat ? cat.name : 'Autre';
+        if (!byCat[catName]) byCat[catName] = {};
+        if (!byCat[catName][p.id]) byCat[catName][p.id] = { product: p, stock: 0 };
+        byCat[catName][p.id].stock += stock;
+        totalValuePublic += stock * (effectivePublicPrice(se, p));
+        totalValueCost += stock * costPriceOf(p);
+    });
+    const catNames = Object.keys(byCat).sort((a, b) => a.localeCompare(b));
+    const blocks = catNames.map(catName => {
+        const items = Object.values(byCat[catName]).sort((a, b) => a.product.name.localeCompare(b.product.name));
+        const catTotal = items.reduce((a, i) => a + i.stock, 0);
+        return `<div class="card p3" style="margin-bottom:10px;">
+            <div class="flex between center" style="margin-bottom:6px;"><strong style="font-size:13px;">${catName}</strong><span class="badge badge-sand">${catTotal} en stock</span></div>
+            ${items.map(i => `<div class="flex between" style="font-size:12px;padding:3px 0;border-bottom:1px solid var(--sand);"><span>${i.product.name}</span><span class="mono">${i.stock}</span></div>`).join('')}
+        </div>`;
+    }).join('') || '<p class="muted">Aucun stock actif.</p>';
+    return `${blocks}
+    <div class="card p3" style="border-left:3px solid var(--sage);">
+        <div class="flex between"><span>Valeur totale du stock (prix public)</span><strong>${fmt(totalValuePublic)}</strong></div>
+        <div class="flex between" style="margin-top:4px;"><span>Valeur totale du stock (coût de revient)</span><strong>${fmt(totalValueCost)}</strong></div>
+    </div>`;
+}
+
+// ---- Point de vente ----
+function openNewLocationModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Nouveau Point de Vente / Boutique</h3>
+        <form onsubmit="submitNewLocation(event)" style="margin-top:10px;">
+            <label class="lbl">Nom du Point de Vente</label><input class="input" id="loc-name" required style="margin-bottom:10px;">
+            <label class="lbl">Commission Boutique (%)</label><input class="input" id="loc-comm" type="number" value="30" min="0" max="100" required style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter Boutique</button></div>
+        </form>`);
+}
+function submitNewLocation(e) {
+    e.preventDefault();
+    appState.locations.push(newRecord({
+        name: document.getElementById('loc-name').value, type: 'depot_boutique',
+        commissionPct: parseInt(document.getElementById('loc-comm').value) || 0, isSellable: true
+    }));
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ---- Dépôt (autocomplete depuis le catalogue) ----
 function productAutocompleteHTML() {
     return `
     <label class="lbl">Catégorie</label>
@@ -997,7 +1269,7 @@ function productAutocompleteHTML() {
     <datalist id="df-product-list"></datalist>
     <input type="hidden" id="df-product-id">`;
 }
-function filterDepositProductOptions() { syncDepositProductSelect(true); }
+function filterDepositProductOptions() { syncDepositProductSelect(); }
 function syncDepositProductSelect() {
     const catId = document.getElementById('df-cat').value;
     const search = document.getElementById('df-product-search').value.toLowerCase();
@@ -1006,6 +1278,24 @@ function syncDepositProductSelect() {
     list.innerHTML = candidates.map(p => `<option data-id="${p.id}" value="${p.name}">`).join('');
     const match = candidates.find(p => p.name.toLowerCase() === search);
     document.getElementById('df-product-id').value = match ? match.id : '';
+    updateDepositPricePreview();
+}
+function updateDepositPricePreview() {
+    const productId = document.getElementById('df-product-id')?.value;
+    const locId = document.getElementById('df-loc')?.value;
+    const priceField = document.getElementById('df-price-public');
+    const reminderEl = document.getElementById('df-net-reminder');
+    if (!priceField) return;
+    const product = getProduct(productId);
+    const loc = getLocation(locId);
+    if (product) {
+        priceField.value = suggestedPublicPriceFor(product, loc);
+        if (reminderEl) {
+            reminderEl.innerHTML = product.desiredNetPrice
+                ? `💡 Prix net souhaité sur cette création : <strong>${fmt(product.desiredNetPrice)}</strong> — prix public calculé automatiquement pour ${loc ? loc.name : 'cette boutique'} (commission ${loc ? loc.commissionPct : 0}%).`
+                : `Aucun "prix net souhaité" renseigné sur cette création — prix public par défaut du catalogue repris ci-dessus.`;
+        }
+    }
 }
 function openDepositModal() {
     openModal(`
@@ -1014,7 +1304,10 @@ function openDepositModal() {
         <form onsubmit="submitDeposit(event)">
             ${productAutocompleteHTML()}
             <label class="lbl">Emplacement</label>
-            <select class="input" id="df-loc" style="margin-bottom:10px;">${live(appState.locations).map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select>
+            <select class="input" id="df-loc" onchange="updateDepositPricePreview()" style="margin-bottom:10px;">${live(appState.locations).map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select>
+            <label class="lbl">Prix public pour ce dépôt (FCFA)</label>
+            <input class="input" id="df-price-public" type="number" style="margin-bottom:6px;">
+            <p class="muted" style="font-size:10px;margin-bottom:10px;" id="df-net-reminder"></p>
             <label class="lbl">Quantité déposée</label>
             <input class="input" id="df-qty" type="number" value="1" min="1" required style="margin-bottom:10px;">
             <label class="lbl">Date du dépôt</label>
@@ -1033,17 +1326,20 @@ function submitDeposit(e) {
     const locationId = document.getElementById('df-loc').value;
     const qty = parseInt(document.getElementById('df-qty').value) || 1;
     const depositDate = document.getElementById('df-date').value;
+    const pricePublicOverride = parseInt(document.getElementById('df-price-public').value) || 0;
     appState.stockEntries.push(newRecord({
         productId, locationId, qtyDeposited: qty, qtySold: 0, qtyReturned: 0, qtyPaid: 0,
-        depositDate, source: 'production_interne', notes: ''
+        depositDate, source: 'production_interne', notes: '', pricePublicOverride: pricePublicOverride || null
     }));
     saveLocal(); closeModal(); renderAll();
 }
 
+// ---- Ventes ----
 function openSaleModal(seId) {
     const se = appState.stockEntries.find(x => x.id === seId);
     const p = getProduct(se.productId);
     const stock = stockEntryStock(se);
+    const loc = getLocation(se.locationId);
     openModal(`
         <h3 class="serif" style="font-size:16px;">Déclarer une Vente</h3>
         <p class="muted" style="font-size:11px;">${p.name} — stock disponible : ${stock}</p>
@@ -1051,7 +1347,7 @@ function openSaleModal(seId) {
             <label class="lbl">Quantité vendue</label>
             <input class="input" id="sf-qty" type="number" value="1" min="1" max="${stock}" required style="margin-bottom:10px;">
             <label class="lbl">Prix de vente unitaire (FCFA)</label>
-            <input class="input" id="sf-price" type="number" value="${p.pricePublic}" required style="margin-bottom:10px;">
+            <input class="input" id="sf-price" type="number" value="${effectivePublicPrice(se, p)}" required style="margin-bottom:10px;">
             <label class="lbl">Date de vente</label>
             <input class="input" id="sf-date" type="date" value="${todayISO()}" required style="margin-bottom:10px;">
             <label style="display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:14px;">
@@ -1083,16 +1379,12 @@ function submitSale(e, seId) {
 function openSettleModal(seId) {
     const se = appState.stockEntries.find(x => x.id === seId);
     const unpaid = unpaidQtyOf(se);
-    openModal(`
-        <h3 class="serif" style="font-size:16px;">Régler un Encaissement</h3>
+    openModal(`<h3 class="serif" style="font-size:16px;">Régler un Encaissement</h3>
         <p class="muted" style="font-size:11px;">${unpaid} vendu(s) non réglé(s)</p>
         <form onsubmit="submitSettle(event,'${seId}')" style="margin-top:10px;">
             <label class="lbl">Quantité réglée</label>
             <input class="input" id="stf-qty" type="number" value="${unpaid}" min="1" max="${unpaid}" required style="margin-bottom:14px;">
-            <div class="flex between">
-                <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
-                <button type="submit" class="btn btn-dark">Marquer Réglé</button>
-            </div>
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Marquer Réglé</button></div>
         </form>`);
 }
 function submitSettle(e, seId) {
@@ -1105,34 +1397,192 @@ function submitSettle(e, seId) {
     relatedSales.forEach(s => { if (remaining > 0) { s.isPaid = true; s.paidDate = todayISO(); touch(s); remaining -= s.qty; } });
     saveLocal(); closeModal(); renderAll();
 }
+function openSaleHistoryModal(seId) {
+    const se = appState.stockEntries.find(x => x.id === seId);
+    const p = getProduct(se.productId);
+    const sales = live(appState.sales).filter(s => s.stockEntryId === seId).sort((a, b) => (b.saleDate || '').localeCompare(a.saleDate || ''));
+    openModal(`<h3 class="serif" style="font-size:16px;">Historique des ventes — ${p.name}</h3>
+        <div style="margin-top:10px;">
+        ${sales.map(s => `
+            <div class="flex between center" style="font-size:12px;padding:8px 0;border-bottom:1px solid var(--sand);">
+                <span>${s.saleDate} — ${s.qty} × ${fmt(s.unitPrice)} ${s.isPaid ? '<span class="badge badge-sage">Réglé</span>' : '<span class="badge badge-clay">Non réglé</span>'}</span>
+                <button class="btn btn-danger btn-sm" onclick="cancelSale('${s.id}')">Annuler cette vente</button>
+            </div>`).join('') || '<p class="muted">Aucune vente enregistrée.</p>'}
+        </div>
+        <div class="flex between" style="margin-top:14px;"><button class="btn btn-outline" onclick="closeModal()">Fermer</button></div>`);
+}
+function cancelSale(saleId) {
+    if (!confirm("Annuler cette vente ? La quantité sera remise en stock disponible.")) return;
+    const sale = appState.sales.find(s => s.id === saleId);
+    if (!sale) return;
+    const se = appState.stockEntries.find(x => x.id === sale.stockEntryId);
+    if (se) {
+        se.qtySold = Math.max(0, (se.qtySold || 0) - sale.qty);
+        if (sale.isPaid) se.qtyPaid = Math.max(0, (se.qtyPaid || 0) - sale.qty);
+        touch(se);
+    }
+    softDelete('sales', saleId);
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ---- Retraits (réparation, vente directe, transformation) ----
+// ---- Motifs de retrait ----
+function withdrawReasonOptionsHTML(selectedId) {
+    return live(appState.withdrawReasons).map(r => `<option value="${r.id}" ${r.id === selectedId ? 'selected' : ''}>${r.name}</option>`).join('') + `<option value="__new__">+ Nouveau motif...</option>`;
+}
+function handleNewWithdrawReasonInline(selectEl) {
+    if (selectEl.value === '__new__') {
+        const name = prompt("Nom du nouveau motif de retrait :");
+        if (name && name.trim()) {
+            const r = newRecord({ name: name.trim(), builtIn: false });
+            appState.withdrawReasons.push(r);
+            selectEl.innerHTML = withdrawReasonOptionsHTML(r.id);
+        } else { selectEl.selectedIndex = 0; }
+    }
+}
+function withdrawReasonName(w) {
+    const r = appState.withdrawReasons.find(x => x.id === w.reasonId);
+    if (r) return r.name;
+    const fallback = { reparation: 'À réparer', vente_directe: 'Vente directe', transformation: 'À transformer', autre: 'Autre' };
+    return fallback[w.reason] || w.reason || '—';
+}
+function openWithdrawModal(seId) {
+    const se = appState.stockEntries.find(x => x.id === seId);
+    const p = getProduct(se.productId);
+    const stock = stockEntryStock(se);
+    openModal(`<h3 class="serif" style="font-size:16px;">Retirer du Dépôt</h3>
+        <p class="muted" style="font-size:11px;">${p.name} — stock actuel : ${stock}</p>
+        <form onsubmit="submitWithdraw(event,'${seId}')" style="margin-top:10px;">
+            <label class="lbl">Quantité retirée</label>
+            <input class="input" id="wf-qty" type="number" value="1" min="1" max="${stock}" required style="margin-bottom:10px;">
+            <label class="lbl">Motif</label>
+            <select class="input" id="wf-reason" onchange="handleNewWithdrawReasonInline(this)" style="margin-bottom:10px;">${withdrawReasonOptionsHTML()}</select>
+            <label class="lbl">Date du retrait</label>
+            <input class="input" id="wf-date" type="date" value="${todayISO()}" style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Confirmer le Retrait</button></div>
+        </form>`);
+}
+function submitWithdraw(e, seId) {
+    e.preventDefault();
+    const se = appState.stockEntries.find(x => x.id === seId);
+    const qty = Math.min(stockEntryStock(se), parseInt(document.getElementById('wf-qty').value) || 1);
+    const reasonId = document.getElementById('wf-reason').value;
+    const withdrawDate = document.getElementById('wf-date').value;
+    se.qtyDeposited = Math.max(se.qtySold + se.qtyReturned, se.qtyDeposited - qty); touch(se);
+    appState.withdrawals.push(newRecord({
+        stockEntryId: seId, productId: se.productId, locationId: se.locationId, qty, reasonId, withdrawDate, status: 'En attente'
+    }));
+    saveLocal(); closeModal(); renderAll();
+}
+const WITHDRAW_REASON_LABELS = { reparation: 'À réparer', vente_directe: 'Vente directe', transformation: 'À transformer', autre: 'Autre' };
+function renderWithdrawalsPending() {
+    const el = document.getElementById('withdrawals-pending');
+    if (!el) return;
+    const pending = live(appState.withdrawals).filter(w => w.status === 'En attente');
+    el.innerHTML = pending.map(w => {
+        const p = getProduct(w.productId);
+        const loc = getLocation(w.locationId);
+        return `<div class="flex between center" style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--sand);">
+            <span>${p ? p.name : '?'} — ${w.qty} retiré(s) de ${loc ? loc.name : ''} (${withdrawReasonName(w)}, ${w.withdrawDate})</span>
+            <button class="btn btn-outline btn-sm" onclick="openResolveWithdrawModal('${w.id}')">Traiter</button>
+        </div>`;
+    }).join('');
+}
+function openResolveWithdrawModal(wId) {
+    const w = appState.withdrawals.find(x => x.id === wId);
+    const p = getProduct(w.productId);
+    openModal(`<h3 class="serif" style="font-size:16px;">Traiter le Retrait — ${p.name}</h3>
+        <p class="muted" style="font-size:11px;">${w.qty} unité(s), motif : ${withdrawReasonName(w)}</p>
+        <form onsubmit="submitResolveWithdraw(event,'${wId}')" style="margin-top:10px;">
+            <label class="lbl">Que faire de ces articles ?</label>
+            <select class="input" id="rw-action" style="margin-bottom:10px;">
+                <option value="restock">Remettre en stock (atelier ou boutique)</option>
+                <option value="vendu">Vendu directement (par moi)</option>
+                <option value="perdu">Perdu / mis au rebut</option>
+            </select>
+            <div id="rw-restock-fields">
+                <label class="lbl">Destination</label>
+                <select class="input" id="rw-dest-loc" style="margin-bottom:10px;">${live(appState.locations).map(l => `<option value="${l.id}">${l.name}</option>`).join('')}</select>
+            </div>
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Valider</button></div>
+        </form>`);
+    document.getElementById('rw-action').addEventListener('change', function() {
+        document.getElementById('rw-restock-fields').classList.toggle('hidden', this.value !== 'restock');
+    });
+}
+function submitResolveWithdraw(e, wId) {
+    e.preventDefault();
+    const w = appState.withdrawals.find(x => x.id === wId);
+    const action = document.getElementById('rw-action').value;
+    if (action === 'restock') {
+        const destLoc = document.getElementById('rw-dest-loc').value;
+        appState.stockEntries.push(newRecord({
+            productId: w.productId, locationId: destLoc, qtyDeposited: w.qty, qtySold: 0, qtyReturned: 0, qtyPaid: 0,
+            depositDate: todayISO(), source: 'transfert_interne', notes: `Retour après retrait (${withdrawReasonName(w)})`
+        }));
+        w.status = 'Remis en stock';
+    } else if (action === 'vendu') {
+        w.status = 'Vendu directement';
+    } else {
+        w.status = 'Perdu';
+    }
+    w.resolvedDate = todayISO(); touch(w);
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ---- Bordereau PDF ----
 function generateBordereau() {
     const locId = document.getElementById('bordereau-loc').value;
     const loc = getLocation(locId);
-    const entries = live(appState.stockEntries).filter(se => se.locationId === locId && stockEntryStock(se) > 0);
-    if (!entries.length) { alert("Aucun stock actif pour ce point de vente."); return; }
+    const mode = document.getElementById('bordereau-mode').value;
+    const filterDate = document.getElementById('bordereau-date').value;
+
+    let entries = live(appState.stockEntries).filter(se => se.locationId === locId && stockEntryStock(se) > 0);
+    if (mode === 'jour') entries = entries.filter(se => se.depositDate === filterDate);
+    if (!entries.length) { alert(mode === 'jour' ? "Aucun dépôt enregistré à cette date pour ce point de vente." : "Aucun stock actif pour ce point de vente."); return; }
+
     let total = 0;
     const rows = entries.map(se => {
         const p = getProduct(se.productId);
         const stock = stockEntryStock(se);
-        total += stock * p.pricePublic;
-        return `<tr><td><img src="${productImage(p)}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td style="text-align:center;">${stock}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td><td style="text-align:right;">${fmt(stock * p.pricePublic)}</td></tr>`;
+        const pubPrice = effectivePublicPrice(se, p);
+        total += stock * pubPrice;
+        return `<tr><td><img src="${productImage(p)}" style="width:40px;height:40px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td style="text-align:center;">${stock}</td><td style="text-align:right;">${fmt(pubPrice)}</td><td style="text-align:right;">${fmt(stock * pubPrice)}</td></tr>`;
     }).join('');
+
+    const withdrawalsForBordereau = live(appState.withdrawals).filter(w => w.locationId === locId && (mode !== 'jour' || w.withdrawDate === filterDate));
+    const withdrawalRows = withdrawalsForBordereau.map(w => {
+        const p = getProduct(w.productId);
+        return `<tr><td>${p ? p.ref : ''}</td><td>${p ? p.name : ''}</td><td style="text-align:center;">${w.qty}</td><td>${withdrawReasonName(w)}</td><td>${w.withdrawDate}</td></tr>`;
+    }).join('');
+
     printHTML(`
-        <div style="text-align:center;"><h2>Dear San'el</h2><p>Bordereau de Dépôt — ${loc.name}</p><p style="font-size:11px;">${new Date().toLocaleDateString('fr-FR')}</p></div>
+        <div style="text-align:center;"><h2>Dear San'el</h2><p>Bordereau de Dépôt — ${loc.name}</p>
+        <p style="font-size:11px;">${mode === 'jour' ? 'Dépôts du ' + filterDate : 'Récapitulatif complet du stock en dépôt'} — édité le ${new Date().toLocaleDateString('fr-FR')}</p></div>
         <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:14px;">
         <tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Article</th><th>Qté</th><th>Prix Public</th><th>Total</th></tr>${rows}</table>
         <p style="text-align:right;font-weight:bold;margin-top:10px;">Valeur totale : ${fmt(total)}</p>
+        ${withdrawalRows ? `<h4 style="margin-top:20px;">Articles retirés</h4>
+        <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;">
+        <tr style="background:#FDF2EC;"><th>Réf</th><th>Article</th><th>Qté</th><th>Motif</th><th>Date</th></tr>${withdrawalRows}</table>` : ''}
         <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:12px;">
             <span>Signature Dear San'el : ____________</span><span>Signature Boutique : ____________</span>
         </div>`);
 }
-
+// ===================== 4. RAPPORTS =====================
 // ===================== 4. RAPPORTS =====================
 let rapportPeriodType = 'month';
 let rapportCompareMode = 'previous'; // 'previous' | 'lastyear' | 'none'
+
 function renderRapportsPage() {
     return `
-    <h2 class="serif" style="font-size:18px;margin-bottom:12px;">Rapports & Rentabilité</h2>
+    <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <h2 class="serif" style="font-size:18px;">Rapports & Rentabilité</h2>
+        <div class="flex gap-2">
+            <button class="btn btn-outline btn-sm" onclick="exportPriceListPDF()">📋 Liste des Prix (PDF)</button>
+            <button class="btn btn-outline btn-sm" onclick="exportRapportPDF()">📄 Rapport Ventes (PDF)</button>
+        </div>
+    </div>
     <div class="card p3" style="margin-bottom:14px;">
         <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:10px;">
             ${['today','week','month','lastmonth','year','all','custom'].map(t => `<button class="btn btn-sm ${rapportPeriodType===t?'btn-dark':'btn-outline'}" onclick="setRapportPeriod('${t}')">${periodLabel(t)}</button>`).join('')}
@@ -1159,45 +1609,47 @@ function pctChange(cur, prev) {
     const change = ((cur - prev) / Math.abs(prev)) * 100;
     return (change >= 0 ? '+' : '') + Math.round(change) + '%';
 }
+function comparisonSuffixLabel() {
+    if (rapportCompareMode === 'previous') return 'mois/période précédente';
+    if (rapportCompareMode === 'lastyear') return "la même période l'an dernier";
+    return '';
+}
 function renderRapportsBody() {
     const body = document.getElementById('rp-body');
     if (!body) return;
     let { start, end } = periodRange(rapportPeriodType, document.getElementById('rp-custom-start')?.value, document.getElementById('rp-custom-end')?.value);
     const m = computeMetrics(start, end);
 
-    let compare = null, compareLabel = '';
+    let compare = null, compareRangeLabel = '';
     if (rapportCompareMode === 'previous' && start && end) {
         const prev = previousEquivalentPeriod(start, end);
-        compare = computeMetrics(prev.start, prev.end); compareLabel = `vs période précédente (${prev.start} → ${prev.end})`;
+        compare = computeMetrics(prev.start, prev.end); compareRangeLabel = `${prev.start} → ${prev.end}`;
     } else if (rapportCompareMode === 'lastyear' && start && end) {
         const ly = samePeriodLastYear(start, end);
-        compare = computeMetrics(ly.start, ly.end); compareLabel = `vs l'an dernier (${ly.start} → ${ly.end})`;
+        compare = computeMetrics(ly.start, ly.end); compareRangeLabel = `${ly.start} → ${ly.end}`;
     }
     const stockByLoc = currentStockByLocation();
+    const compareSuffix = comparisonSuffixLabel();
 
     body.innerHTML = `
-    <div class="grid g4" style="margin-bottom:16px;">
-        ${kpiCard('CA Brut', m.caBrut, compare && compare.caBrut)}
-        ${kpiCard('CA Net', m.caNet, compare && compare.caNet)}
-        ${kpiCard('Coût de Revient', m.cout, compare && compare.cout)}
-        ${kpiCard('Bénéfice Net', m.benefice, compare && compare.benefice, true)}
+    <div class="grid g4" style="margin-bottom:6px;">
+        ${kpiCardFull('CA Brut (Prix Public)', m.caBrut, compare && compare.caBrut, compareSuffix)}
+        ${kpiCardFull('CA Net (Revenu Créateur)', m.caNet, compare && compare.caNet, compareSuffix)}
+        ${kpiCardFull('Coût de Revient Total', m.cout, compare && compare.cout, compareSuffix)}
+        ${kpiCardFull('Bénéfice Net', m.benefice, compare && compare.benefice, compareSuffix, true)}
     </div>
-    ${compare ? `<p class="muted" style="font-size:10px;margin:-8px 0 16px;">Comparaison ${compareLabel}</p>` : ''}
+    ${compare ? `<p class="muted" style="font-size:10px;margin:0 0 16px;">Comparaison vs ${compareRangeLabel}</p>` : ''}
 
     <div class="grid g2" style="margin-bottom:16px;">
         <div class="card p3">
-            <h4 class="serif" style="font-size:13px;margin-bottom:8px;">Par catégorie</h4>
-            ${Object.entries(m.byCategory).sort((a,b)=>b[1].benefice-a[1].benefice).map(([name,v]) => `
-                <div class="flex between" style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--sand);">
-                    <span>${name} <span class="muted">(${v.qty} vendus)</span></span><span style="color:var(--sage-dark);font-weight:600;">${fmt(v.benefice)}</span>
-                </div>`).join('') || '<p class="muted" style="font-size:12px;">Aucune vente sur la période.</p>'}
+            <h4 class="serif" style="font-size:13px;margin-bottom:2px;">Par catégorie</h4>
+            <p class="muted" style="font-size:10px;margin-bottom:8px;">CA Net, Coût de Revient et Bénéfice Net de chaque catégorie${compare ? ' (comparés à ' + compareSuffix + ')' : ''}</p>
+            ${breakdownRows(m.byCategory, compare && compare.byCategory)}
         </div>
         <div class="card p3">
-            <h4 class="serif" style="font-size:13px;margin-bottom:8px;">Par point de vente</h4>
-            ${Object.entries(m.byLocation).sort((a,b)=>b[1].benefice-a[1].benefice).map(([name,v]) => `
-                <div class="flex between" style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--sand);">
-                    <span>${name} <span class="muted">(${v.qty} vendus)</span></span><span style="color:var(--sage-dark);font-weight:600;">${fmt(v.benefice)}</span>
-                </div>`).join('') || '<p class="muted" style="font-size:12px;">Aucune vente sur la période.</p>'}
+            <h4 class="serif" style="font-size:13px;margin-bottom:2px;">Par point de vente</h4>
+            <p class="muted" style="font-size:10px;margin-bottom:8px;">CA Net, Coût de Revient et Bénéfice Net de chaque point de vente${compare ? ' (comparés à ' + compareSuffix + ')' : ''}</p>
+            ${breakdownRows(m.byLocation, compare && compare.byLocation)}
         </div>
     </div>
 
@@ -1208,21 +1660,71 @@ function renderRapportsBody() {
         </div>
     </div>
 
-    <div class="flex gap-2" style="margin-bottom:10px;">
-        <button class="btn btn-outline btn-sm" onclick="exportRapportPDF()">📄 Export PDF</button>
+    <div class="card" style="overflow-x:auto;margin-bottom:10px;">
+        <div class="p3" style="padding-bottom:0;"><h4 class="serif" style="font-size:13px;">Liste des Prix & Marges${start ? ' — ventes de la période sélectionnée' : ''}</h4></div>
+        <table><thead><tr><th>Photo</th><th>Réf.</th><th>Article</th><th>Catégorie</th><th>Coût Revient</th><th>Prix Public</th><th>Prix Net</th><th>Marge Unit.</th><th>Marge %</th><th>Vendus</th><th>Bénéfice Total</th></tr></thead>
+        <tbody>${priceListRows(start, end)}</tbody></table>
     </div>`;
 }
-function kpiCard(label, value, compareValue, isProfit) {
+function breakdownRows(current, previous) {
+    const entries = Object.entries(current).sort((a,b)=>b[1].benefice-a[1].benefice);
+    if (!entries.length) return '<p class="muted" style="font-size:12px;">Aucune vente sur la période.</p>';
+    return entries.map(([name, v]) => {
+        const prev = previous ? previous[name] : null;
+        return `<div style="padding:8px 0;border-bottom:1px solid var(--sand);font-size:12px;">
+            <div class="flex between"><strong>${name}</strong><span class="muted">${v.qty} vendu(s)</span></div>
+            <div class="flex between" style="margin-top:2px;"><span class="muted">CA Net</span><span>${fmt(v.caNet)}${prev ? ` <span class="muted">vs ${fmt(prev.caNet)}</span>` : ''}</span></div>
+            <div class="flex between"><span class="muted">Coût de Revient</span><span>${fmt(v.cout)}${prev ? ` <span class="muted">vs ${fmt(prev.cout)}</span>` : ''}</span></div>
+            <div class="flex between"><span class="muted">Bénéfice Net</span><span style="color:var(--sage-dark);font-weight:600;">${fmt(v.benefice)}${prev ? ` <span class="muted" style="color:var(--warmgray);font-weight:400;">vs ${fmt(prev.benefice)}</span>` : ''}</span></div>
+        </div>`;
+    }).join('');
+}
+function kpiCardFull(label, value, compareValue, compareSuffix, isProfit) {
     return `<div class="card p3" ${isProfit ? 'style="border-left:3px solid var(--sage);"' : ''}>
-        <p class="lbl">${label}</p><p class="serif" style="font-size:17px;${isProfit?'color:var(--sage-dark);':''}">${fmt(value)}</p>
-        ${compareValue !== undefined && compareValue !== null ? `<p style="font-size:10px;color:var(--warmgray);">${pctChange(value, compareValue)}</p>` : ''}
+        <p class="lbl">${label}</p><p class="serif" style="font-size:16px;${isProfit?'color:var(--sage-dark);':''}">${fmt(value)}</p>
+        ${compareValue !== undefined && compareValue !== null ? `<p style="font-size:10px;color:var(--warmgray);">${fmt(compareValue)} ${compareSuffix} (${pctChange(value, compareValue)})</p>` : ''}
     </div>`;
+}
+function priceListRows(start, end) {
+    const sales = start ? live(appState.sales).filter(s => s.saleDate >= start && s.saleDate <= end) : live(appState.sales);
+    const soldByProduct = {};
+    sales.forEach(s => { soldByProduct[s.productId] = (soldByProduct[s.productId] || 0) + s.qty; });
+    return live(appState.products).map(p => {
+        const cat = getCategory(p.categoryId);
+        const cost = costPriceOf(p);
+        const net = p.desiredNetPrice || p.pricePublic;
+        const marginU = net - cost;
+        const marginP = net ? Math.round((marginU / net) * 100) : 0;
+        const sold = soldByProduct[p.id] || 0;
+        const beneficeTotal = sales.filter(s => s.productId === p.id).reduce((a, s) => a + (Math.round(s.qty * s.unitPrice * (1 - (s.commissionPct||0)/100)) - s.qty * cost), 0);
+        return `<tr>
+            <td><img src="${productImage(p)}" class="thumb" style="width:32px;height:32px;"></td>
+            <td class="mono" style="font-size:10px;">${p.ref}</td>
+            <td>${p.name}</td>
+            <td class="muted">${cat ? cat.name : ''}</td>
+            <td class="mono">${cost ? fmt(cost) : '<span style="color:var(--clay);">Non renseigné</span>'}</td>
+            <td class="mono">${fmt(p.pricePublic)}</td>
+            <td class="mono">${fmt(net)}</td>
+            <td class="mono" style="color:${marginU>=0?'var(--sage-dark)':'#dc2626'};">${fmt(marginU)}</td>
+            <td>${cost ? marginP + '%' : '—'}</td>
+            <td style="text-align:center;">${sold}</td>
+            <td class="mono" style="font-weight:600;color:${beneficeTotal>=0?'var(--sage-dark)':'#dc2626'};">${fmt(beneficeTotal)}</td>
+        </tr>`;
+    }).join('');
 }
 function exportRapportPDF() {
     const body = document.getElementById('rp-body').innerHTML;
     printHTML(`<h2>Dear San'el — Rapport (${periodLabel(rapportPeriodType)})</h2>${body}`);
 }
-
+function exportPriceListPDF() {
+    const rows = live(appState.products).map(p => {
+        const cat = getCategory(p.categoryId);
+        const cost = costPriceOf(p);
+        const net = p.desiredNetPrice || p.pricePublic;
+        return `<tr><td><img src="${productImage(p)}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td>${cat?cat.name:''}</td><td style="text-align:right;">${cost?fmt(cost):'Non renseigné'}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td><td style="text-align:right;">${fmt(net)}</td></tr>`;
+    }).join('');
+    printHTML(`<h2>Dear San'el — Liste des Prix</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Article</th><th>Catégorie</th><th>Coût Revient</th><th>Prix Public</th><th>Prix Net</th></tr>${rows}</table>`);
+}
 // ===================== 5. MATIÈRES PREMIÈRES (BOM) =====================
 function renderMatieresPage() {
     return `
@@ -1753,6 +2255,28 @@ function renderAidePage() {
 }
 
 // ===================== EXPOSITION DES GESTIONNAIRES (onclick etc.) SUR WINDOW =====================
+window.cancelSale = cancelSale;
+window.exportPriceListPDF = exportPriceListPDF;
+window.handleNewWithdrawReasonInline = handleNewWithdrawReasonInline;
+window.openNewLocationModal = openNewLocationModal;
+window.openResolveWithdrawModal = openResolveWithdrawModal;
+window.openSaleHistoryModal = openSaleHistoryModal;
+window.openWithdrawModal = openWithdrawModal;
+window.setDepotView = setDepotView;
+window.submitNewLocation = submitNewLocation;
+window.submitResolveWithdraw = submitResolveWithdraw;
+window.submitWithdraw = submitWithdraw;
+window.toggleBordereauDate = toggleBordereauDate;
+window.updateDepositPricePreview = updateDepositPricePreview;
+window.handleNewCostTypeInline = handleNewCostTypeInline;
+window.openGammesModal = openGammesModal;
+window.reassignCategoryGamme = reassignCategoryGamme;
+window.recalcCostTotal = recalcCostTotal;
+window.restoreProduct = restoreProduct;
+window.setCatGamme = setCatGamme;
+window.submitNewGamme = submitNewGamme;
+window.toggleArchivedView = toggleArchivedView;
+window.toggleCatalogueActions = toggleCatalogueActions;
 window.after_catalogue = after_catalogue;
 window.after_courses = after_courses;
 window.after_couturiere = after_couturiere;
