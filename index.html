@@ -50,6 +50,21 @@ tr:hover td{background:rgba(232,226,217,.15);}
 #modal-overlay{position:fixed;inset:0;background:rgba(26,26,26,.5);backdrop-filter:blur(3px);z-index:100;display:none;align-items:center;justify-content:center;padding:16px;}
 #modal-box{background:#fff;max-width:520px;width:100%;max-height:92vh;overflow-y:auto;border-radius:14px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.25);}
 .top-header{position:sticky;top:0;z-index:40;background:rgba(253,251,247,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--sand);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;}
+.app-layout{display:flex;min-height:100vh;align-items:stretch;}
+.sidebar{width:240px;flex-shrink:0;border-right:1px solid var(--sand);background:#fff;padding:20px 14px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.sidebar-brand{padding:0 10px 18px;border-bottom:1px solid var(--sand);margin-bottom:14px;}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;flex:1;}
+.sidebar-nav button{display:flex;align-items:center;gap:10px;text-align:left;background:none;border:none;color:var(--warmgray);font-size:13px;font-weight:500;padding:9px 10px;border-radius:8px;}
+.sidebar-nav button .nav-icon{font-size:15px;width:18px;text-align:center;}
+.sidebar-nav button.active{background:var(--sand);color:var(--charcoal);font-weight:600;}
+.sidebar-nav button:hover:not(.active){background:rgba(232,226,217,.4);}
+.sidebar-footer{padding:12px 10px 0;border-top:1px solid var(--sand);margin-top:10px;}
+.content-col{flex:1;min-width:0;}
+.mobile-top-header{display:none;}
+@media(max-width:900px){
+  .sidebar{display:none;}
+  .mobile-top-header{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:40;background:rgba(253,251,247,.95);backdrop-filter:blur(8px);border-bottom:1px solid var(--sand);padding:12px 16px;}
+}
 nav.desktop-nav{display:flex;gap:18px;padding:10px 20px;border-bottom:1px solid var(--sand);overflow-x:auto;font-size:12px;font-weight:600;}
 nav.desktop-nav button{background:none;border:none;color:var(--warmgray);padding-bottom:6px;white-space:nowrap;}
 nav.desktop-nav button.active{color:var(--charcoal);border-bottom:2px solid var(--charcoal);}
@@ -110,21 +125,29 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 
 <div id="app-root" class="hidden">
 
-<header class="top-header">
-  <div>
-    <h1 class="serif" style="font-size:19px;">Dear San'el</h1>
-    <p class="muted" style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;margin-top:2px;">Atelier · Boutiques · Rentabilité</p>
+<div class="app-layout">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <h1 class="serif" style="font-size:18px;">Dear San'el</h1>
+      <p class="muted" style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">Atelier · Boutiques · Rentabilité</p>
+    </div>
+    <nav class="sidebar-nav" id="sidebar-nav"></nav>
+    <div class="sidebar-footer">
+      <span id="sync-indicator" style="font-size:10px;" class="muted"><span class="sync-dot sync-idle"></span>Local</span>
+    </div>
+  </aside>
+
+  <div class="content-col">
+    <header class="mobile-top-header">
+      <h1 class="serif" style="font-size:17px;">Dear San'el</h1>
+      <span id="sync-indicator-mobile" style="font-size:10px;" class="muted"><span class="sync-dot sync-idle"></span></span>
+    </header>
+
+    <main id="main-content"></main>
+
+    <nav class="mobile-nav" id="mobile-nav"></nav>
   </div>
-  <div class="flex center gap-2">
-    <span id="sync-indicator" style="font-size:10px;" class="muted"><span class="sync-dot sync-idle"></span>Local</span>
-  </div>
-</header>
-
-<nav class="desktop-nav" id="desktop-nav"></nav>
-
-<main id="main-content"></main>
-
-<nav class="mobile-nav" id="mobile-nav"></nav>
+</div>
 
 </div>
 
@@ -207,7 +230,8 @@ function freshState() {
         collections: [],
         productCollections: [],
         collectionInvestments: [],
-        withdrawals: []
+        withdrawals: [],
+        productionRuns: []
     };
 }
 function emptyState() {
@@ -216,7 +240,7 @@ function emptyState() {
         sales: [], loans: [], subcontractors: [], subAdvances: [], subOrders: [],
         subOrderLines: [], subReceptions: [], suppliers: [], shoppingItems: [],
         marketingPosts: [], marketingCaptions: [], rdItems: [], collections: [],
-        productCollections: [], collectionInvestments: [], withdrawals: []
+        productCollections: [], collectionInvestments: [], withdrawals: [], productionRuns: []
     };
 }
 const COLLECTION_KEYS = Object.keys(emptyState());
@@ -270,10 +294,11 @@ function mergeStates(localState, remoteState) {
 }
 
 function setSyncIndicator(status, label) {
-    const el = document.getElementById('sync-indicator');
-    if (!el) return;
     const dotClass = status === 'ok' ? 'sync-ok' : status === 'err' ? 'sync-err' : 'sync-idle';
-    el.innerHTML = `<span class="sync-dot ${dotClass}"></span>${label}`;
+    const el = document.getElementById('sync-indicator');
+    if (el) el.innerHTML = `<span class="sync-dot ${dotClass}"></span>${label}`;
+    const elm = document.getElementById('sync-indicator-mobile');
+    if (elm) elm.innerHTML = `<span class="sync-dot ${dotClass}"></span>`;
 }
 
 async function sbFetchRemote(code) {
@@ -463,6 +488,7 @@ function ensureDefaultTaxonomies() {
         changed = true;
     }
     if (!appState.withdrawals) { appState.withdrawals = []; changed = true; }
+    if (!appState.productionRuns) { appState.productionRuns = []; changed = true; }
     if (changed) saveLocal();
 }
 
@@ -510,8 +536,8 @@ const PAGES = [
 let currentPage = 'dashboard';
 
 function renderNav() {
-    const desktop = document.getElementById('desktop-nav');
-    desktop.innerHTML = PAGES.map(p => `<button id="dnav-${p.id}" onclick="navigate('${p.id}')">${p.label}</button>`).join('');
+    const sidebar = document.getElementById('sidebar-nav');
+    sidebar.innerHTML = PAGES.map(p => `<button id="dnav-${p.id}" onclick="navigate('${p.id}')"><span class="nav-icon">${p.icon}</span>${p.label}</button>`).join('');
 
     const mobile = document.getElementById('mobile-nav');
     const primary = PAGES.filter(p => p.mobilePrimary);
@@ -1785,7 +1811,7 @@ function renderMatieresPage() {
         <p class="muted" style="font-size:11px;">Stock de fournitures à l'atelier — le stock confié à la couturière se gère dans l'onglet Sous-traitance</p></div>
         <button class="btn btn-dark btn-sm" onclick="openMaterialModal()">+ Nouvelle Matière</button>
     </div>
-    <div class="grid g2" style="align-items:start;">
+    <div class="grid g2" style="align-items:start;margin-bottom:16px;">
         <div class="card p3">
             <h4 class="serif" style="font-size:13px;margin-bottom:8px;">🧵 Stocks de Fournitures & Tissus</h4>
             <div style="overflow-x:auto;">
@@ -1795,7 +1821,7 @@ function renderMatieresPage() {
         </div>
         <div class="card p3" style="background:var(--cream);">
             <h4 class="serif" style="font-size:13px;margin-bottom:8px;">⚡ Lancer Confection (Déduction Stock)</h4>
-            <form onsubmit="submitFabricationRun(event)">
+            <form onsubmit="handleRunFormSubmit(event)">
                 <label class="lbl">Choisir la création</label>
                 <select class="input" id="run-product-id" onchange="previewBOMFormula()" style="margin-bottom:10px;">${live(appState.products).map(p => `<option value="${p.id}">${p.ref} — ${p.name}</option>`).join('')}</select>
                 <label class="lbl">Quantité confectionnée</label>
@@ -1805,9 +1831,25 @@ function renderMatieresPage() {
                 <button type="submit" class="btn btn-sage" style="width:100%;">Valider, Déduire les Matières & Ajouter au Stock</button>
             </form>
         </div>
+    </div>
+
+    <div class="card p3" style="margin-bottom:16px;">
+        <div class="flex between center" style="cursor:pointer;" onclick="toggleBOMListSection()">
+            <h4 class="serif" style="font-size:13px;">📋 Fiches Techniques Enregistrées (<span id="bom-list-count">0</span>)</h4>
+            <span id="bom-list-toggle-icon">▾</span>
+        </div>
+        <div id="bom-list-section" style="max-height:320px;overflow-y:auto;margin-top:10px;"></div>
+    </div>
+
+    <div class="card p3">
+        <div class="flex between center" style="cursor:pointer;" onclick="toggleRunLogSection()">
+            <h4 class="serif" style="font-size:13px;">🧾 Journal des Confections</h4>
+            <span id="run-log-toggle-icon">▾</span>
+        </div>
+        <div id="run-log-section" style="max-height:280px;overflow-y:auto;margin-top:10px;"></div>
     </div>`;
 }
-function after_matieres() { renderMaterialsTable(); previewBOMFormula(); }
+function after_matieres() { renderMaterialsTable(); previewBOMFormula(); renderBOMListSection(); renderRunLogSection(); }
 function stockValueOf(m) { return (m.stockAtelier || 0) * (m.unitPrice || 0); }
 function renderMaterialsTable() {
     const tbody = document.getElementById('mat-tbody');
@@ -1817,35 +1859,76 @@ function renderMaterialsTable() {
         <td class="mono" style="${m.stockAtelier < 5 ? 'color:#dc2626;font-weight:600;' : ''}">${m.stockAtelier}</td>
         <td class="mono">${fmt(m.unitPrice)}</td>
         <td class="mono">${fmt(stockValueOf(m))}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="deleteMaterial('${m.id}')">Suppr.</button></td></tr>
+        <td style="white-space:nowrap;">
+            <button class="btn btn-outline btn-sm" onclick="openMaterialModal('${m.id}')">Modifier</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteMaterial('${m.id}')">Suppr.</button>
+        </td></tr>
     `).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:16px;">Aucune matière enregistrée.</td></tr>';
 }
-function openMaterialModal() {
+function openMaterialModal(id) {
+    const editing = !!id;
+    const m = editing ? appState.materials.find(x => x.id === id) : null;
     openModal(`
-        <h3 class="serif" style="font-size:16px;">Nouvelle Matière</h3>
-        <p class="muted" style="font-size:11px;margin-bottom:10px;">Tissus, mais aussi fermetures, vlisofix, fil, boutons... tout ce qui entre dans une fiche technique.</p>
-        <form onsubmit="submitMaterial(event)">
-            <label class="lbl">Nom</label><input class="input" id="mf-name" required style="margin-bottom:10px;">
-            <label class="lbl">Unité</label><input class="input" id="mf-unit" value="Mètre" required style="margin-bottom:10px;">
-            <label class="lbl">Stock initial (atelier)</label><input class="input" id="mf-stock" type="number" value="0" style="margin-bottom:10px;">
-            <label class="lbl">Prix unitaire (FCFA)</label><input class="input" id="mf-price" type="number" value="0" style="margin-bottom:14px;">
-            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
+        <h3 class="serif" style="font-size:16px;">${editing ? 'Modifier la Matière' : 'Nouvelle Matière'}</h3>
+        ${!editing ? `<p class="muted" style="font-size:11px;margin-bottom:10px;">Tissus, mais aussi fermetures, vlisofix, fil, boutons... tout ce qui entre dans une fiche technique.</p>` : ''}
+        <form onsubmit="submitMaterial(event, ${editing ? `'${id}'` : 'null'})">
+            <label class="lbl">Nom</label><input class="input" id="mf-name" value="${m ? m.name : ''}" required style="margin-bottom:10px;">
+            <label class="lbl">Unité</label><input class="input" id="mf-unit" value="${m ? m.unit : 'Mètre'}" required style="margin-bottom:10px;">
+            <label class="lbl">Stock actuel (atelier)</label><input class="input" id="mf-stock" type="number" value="${m ? m.stockAtelier : 0}" style="margin-bottom:10px;">
+            <label class="lbl">Prix unitaire (FCFA)</label><input class="input" id="mf-price" type="number" value="${m ? m.unitPrice : 0}" style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">${editing ? 'Enregistrer' : 'Ajouter'}</button></div>
         </form>`);
 }
-function submitMaterial(e) {
+function submitMaterial(e, id) {
     e.preventDefault();
-    appState.materials.push(newRecord({
-        name: document.getElementById('mf-name').value, unit: document.getElementById('mf-unit').value,
-        stockAtelier: parseFloat(document.getElementById('mf-stock').value) || 0, stockChezCouturiere: 0,
-        unitPrice: parseFloat(document.getElementById('mf-price').value) || 0
-    }));
+    const name = document.getElementById('mf-name').value;
+    const unit = document.getElementById('mf-unit').value;
+    const stockAtelier = parseFloat(document.getElementById('mf-stock').value) || 0;
+    const unitPrice = parseFloat(document.getElementById('mf-price').value) || 0;
+    if (id) {
+        const m = appState.materials.find(x => x.id === id);
+        m.name = name; m.unit = unit; m.stockAtelier = stockAtelier; m.unitPrice = unitPrice; touch(m);
+    } else {
+        appState.materials.push(newRecord({ name, unit, stockAtelier, stockChezCouturiere: 0, unitPrice }));
+    }
     saveLocal(); closeModal(); renderAll();
 }
 function deleteMaterial(id) { if (confirm("Supprimer cette matière ?")) { softDelete('materials', id); saveLocal(); renderAll(); } }
 
-// ---- Fiche technique (BOM) ----
+// ---- Fiches techniques : liste + édition ----
+let bomListCollapsed = false;
+let runLogCollapsed = false;
+function toggleBOMListSection() {
+    bomListCollapsed = !bomListCollapsed;
+    document.getElementById('bom-list-section').style.display = bomListCollapsed ? 'none' : 'block';
+    document.getElementById('bom-list-toggle-icon').textContent = bomListCollapsed ? '▸' : '▾';
+}
+function toggleRunLogSection() {
+    runLogCollapsed = !runLogCollapsed;
+    document.getElementById('run-log-section').style.display = runLogCollapsed ? 'none' : 'block';
+    document.getElementById('run-log-toggle-icon').textContent = runLogCollapsed ? '▸' : '▾';
+}
+function renderBOMListSection() {
+    const el = document.getElementById('bom-list-section');
+    if (!el) return;
+    const withRecipe = live(appState.products).filter(p => p.recipe && p.recipe.length > 0);
+    document.getElementById('bom-list-count').textContent = withRecipe.length;
+    el.innerHTML = withRecipe.length ? withRecipe.map(p => {
+        const summary = p.recipe.map(r => {
+            const mat = appState.materials.find(m => m.id === r.materialId);
+            return mat ? `${r.qtyNeeded} ${mat.unit} ${mat.name}` : null;
+        }).filter(Boolean).join(', ');
+        return `<div class="flex between center" style="font-size:12px;padding:7px 0;border-bottom:1px solid var(--sand);">
+            <span><strong>${p.name}</strong><br><span class="muted" style="font-size:10px;">${summary}</span></span>
+            <button class="btn btn-outline btn-sm" onclick="openBOMEditorModalFor('${p.id}')">Modifier</button>
+        </div>`;
+    }).join('') : '<p class="muted" style="font-size:12px;">Aucune fiche technique configurée pour le moment.</p>';
+}
 function openBOMEditorModal() {
     const productId = document.getElementById('run-product-id')?.value;
+    openBOMEditorModalFor(productId);
+}
+function openBOMEditorModalFor(productId) {
     const p = getProduct(productId);
     if (!p) return;
     openModal(`
@@ -1885,7 +1968,7 @@ function saveBOM(productId) {
     saveLocal(); closeModal(); renderAll();
 }
 
-// ---- Lancer confection ----
+// ---- Lancer confection (avec confirmation + annulation) ----
 function previewBOMFormula() {
     const container = document.getElementById('bom-formula-preview');
     if (!container) return;
@@ -1908,28 +1991,85 @@ function previewBOMFormula() {
     html += `</ul>`;
     container.innerHTML = html;
 }
-function submitFabricationRun(e) {
+function handleRunFormSubmit(e) {
     e.preventDefault();
     const productId = document.getElementById('run-product-id').value;
     const qtyRun = parseInt(document.getElementById('run-qty').value) || 1;
     const p = getProduct(productId);
     if (!p) return;
+    let materialsHtml = '<p class="muted" style="font-size:12px;">Aucune fiche technique — aucune matière ne sera déduite, seul le stock produit sera incrémenté.</p>';
+    if (p.recipe && p.recipe.length > 0) {
+        materialsHtml = '<ul style="font-size:12px;padding-left:18px;">' + p.recipe.map(r => {
+            const mat = appState.materials.find(m => m.id === r.materialId);
+            if (!mat) return '';
+            const needed = r.qtyNeeded * qtyRun;
+            return `<li>${mat.name} : -${needed} ${mat.unit}</li>`;
+        }).join('') + '</ul>';
+    }
+    openModal(`
+        <h3 class="serif" style="font-size:16px;">Confirmer la Confection</h3>
+        <p class="muted" style="font-size:12px;margin:8px 0;">${qtyRun} × <strong>${p.name}</strong> sera ajouté au stock Atelier Maison.</p>
+        ${materialsHtml}
+        <div class="flex between" style="margin-top:16px;">
+            <button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button>
+            <button type="button" class="btn btn-sage" onclick="confirmFabricationRun('${productId}', ${qtyRun})">Confirmer & Déduire</button>
+        </div>`);
+}
+function confirmFabricationRun(productId, qtyRun) {
+    const p = getProduct(productId);
+    if (!p) return;
+    const materialsUsed = [];
     if (p.recipe && p.recipe.length > 0) {
         for (const r of p.recipe) {
             const mat = appState.materials.find(m => m.id === r.materialId);
-            if (mat) { mat.stockAtelier = Math.max(0, mat.stockAtelier - r.qtyNeeded * qtyRun); touch(mat); }
+            if (mat) {
+                const needed = r.qtyNeeded * qtyRun;
+                mat.stockAtelier = Math.max(0, mat.stockAtelier - needed); touch(mat);
+                materialsUsed.push({ materialId: mat.id, qtyUsed: needed });
+            }
         }
     }
     const atelier = live(appState.locations).find(l => l.type === 'atelier_central');
+    let stockEntryId, wasNew = false;
     const existing = live(appState.stockEntries).find(se => se.productId === p.id && se.locationId === atelier.id && se.source === 'production_interne');
-    if (existing) { existing.qtyDeposited += qtyRun; touch(existing); }
-    else appState.stockEntries.push(newRecord({
-        productId: p.id, locationId: atelier.id, qtyDeposited: qtyRun, qtySold: 0, qtyReturned: 0, qtyPaid: 0,
-        depositDate: todayISO(), source: 'production_interne', notes: 'Confection interne'
-    }));
-    saveLocal();
-    alert(`Confection enregistrée : ${qtyRun} × ${p.name} ajouté(s) au stock Atelier Maison.`);
-    renderAll();
+    if (existing) { existing.qtyDeposited += qtyRun; touch(existing); stockEntryId = existing.id; }
+    else {
+        const se = newRecord({
+            productId: p.id, locationId: atelier.id, qtyDeposited: qtyRun, qtySold: 0, qtyReturned: 0, qtyPaid: 0,
+            depositDate: todayISO(), source: 'production_interne', notes: 'Confection interne'
+        });
+        appState.stockEntries.push(se); stockEntryId = se.id; wasNew = true;
+    }
+    appState.productionRuns.push(newRecord({ productId: p.id, qty: qtyRun, materialsUsed, stockEntryId, wasNew, runDate: todayISO() }));
+    saveLocal(); closeModal(); renderAll();
+}
+function renderRunLogSection() {
+    const el = document.getElementById('run-log-section');
+    if (!el) return;
+    const runs = live(appState.productionRuns).sort((a, b) => (b._ts || 0) - (a._ts || 0));
+    el.innerHTML = runs.length ? runs.map(r => {
+        const p = getProduct(r.productId);
+        return `<div class="flex between center" style="font-size:12px;padding:7px 0;border-bottom:1px solid var(--sand);">
+            <span>${r.runDate} — ${r.qty} × ${p ? p.name : '?'}</span>
+            <button class="btn btn-danger btn-sm" onclick="undoProductionRun('${r.id}')">Annuler</button>
+        </div>`;
+    }).join('') : '<p class="muted" style="font-size:12px;">Aucune confection enregistrée pour le moment.</p>';
+}
+function undoProductionRun(runId) {
+    if (!confirm("Annuler cette confection ? Les matières seront recréditées et le stock produit ajusté en conséquence.")) return;
+    const run = appState.productionRuns.find(r => r.id === runId);
+    if (!run) return;
+    (run.materialsUsed || []).forEach(mu => {
+        const mat = appState.materials.find(m => m.id === mu.materialId);
+        if (mat) { mat.stockAtelier += mu.qtyUsed; touch(mat); }
+    });
+    const se = appState.stockEntries.find(x => x.id === run.stockEntryId);
+    if (se) {
+        se.qtyDeposited = Math.max(se.qtySold + se.qtyReturned, se.qtyDeposited - run.qty);
+        touch(se);
+    }
+    softDelete('productionRuns', runId);
+    saveLocal(); renderAll();
 }
 // ===================== 6. SOUS-TRAITANCE COUTURIÈRE =====================
 function renderCouturierePage() {
@@ -2416,11 +2556,17 @@ function renderAidePage() {
 
 // ===================== EXPOSITION DES GESTIONNAIRES (onclick etc.) SUR WINDOW =====================
 window.cancelSale = cancelSale;
+window.confirmFabricationRun = confirmFabricationRun;
+window.handleRunFormSubmit = handleRunFormSubmit;
+window.openBOMEditorModalFor = openBOMEditorModalFor;
+window.toggleBOMListSection = toggleBOMListSection;
+window.toggleRunLogSection = toggleRunLogSection;
+window.undoProductionRun = undoProductionRun;
 window.addBOMRow = addBOMRow;
 window.openBOMEditorModal = openBOMEditorModal;
 window.previewBOMFormula = previewBOMFormula;
 window.saveBOM = saveBOM;
-window.submitFabricationRun = submitFabricationRun;
+window.confirmFabricationRun = confirmFabricationRun;
 window.exportPriceListPDF = exportPriceListPDF;
 window.handleNewWithdrawReasonInline = handleNewWithdrawReasonInline;
 window.openNewLocationModal = openNewLocationModal;
