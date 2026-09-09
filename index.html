@@ -231,7 +231,8 @@ function freshState() {
         productCollections: [],
         collectionInvestments: [],
         withdrawals: [],
-        productionRuns: []
+        productionRuns: [],
+        subOrderPenalties: []
     };
 }
 function emptyState() {
@@ -240,7 +241,7 @@ function emptyState() {
         sales: [], loans: [], subcontractors: [], subAdvances: [], subOrders: [],
         subOrderLines: [], subReceptions: [], suppliers: [], shoppingItems: [],
         marketingPosts: [], marketingCaptions: [], rdItems: [], collections: [],
-        productCollections: [], collectionInvestments: [], withdrawals: [], productionRuns: []
+        productCollections: [], collectionInvestments: [], withdrawals: [], productionRuns: [], subOrderPenalties: []
     };
 }
 const COLLECTION_KEYS = Object.keys(emptyState());
@@ -489,6 +490,7 @@ function ensureDefaultTaxonomies() {
     }
     if (!appState.withdrawals) { appState.withdrawals = []; changed = true; }
     if (!appState.productionRuns) { appState.productionRuns = []; changed = true; }
+    if (!appState.subOrderPenalties) { appState.subOrderPenalties = []; changed = true; }
     if (changed) saveLocal();
 }
 
@@ -754,12 +756,6 @@ function computeMetricsPaidOnly(start, end) {
         cout += s.qty * costPriceOf(product);
     });
     return { caNet, cout, benefice: caNet - cout };
-}
-function computeOrderFinancials(order) {
-    const lines = live(appState.subOrderLines).filter(l => l.orderId === order.id && !l.reallocatedToLineId);
-    const totalCost = lines.reduce((a, l) => a + l.qtyOrdered * (order.unitLaborCost || 0), 0);
-    const balanceDue = totalCost - (order.advance || 0);
-    return { totalCost, balanceDue };
 }
 function renderDashboardPage() {
     const { start, end } = periodRange('month');
@@ -1851,19 +1847,24 @@ function renderMatieresPage() {
 }
 function after_matieres() { renderMaterialsTable(); previewBOMFormula(); renderBOMListSection(); renderRunLogSection(); }
 function stockValueOf(m) { return (m.stockAtelier || 0) * (m.unitPrice || 0); }
+let expandedMaterialId = null;
+function toggleMaterialActions(id) { expandedMaterialId = (expandedMaterialId === id) ? null : id; renderMaterialsTable(); }
 function renderMaterialsTable() {
     const tbody = document.getElementById('mat-tbody');
     if (!tbody) return;
-    tbody.innerHTML = live(appState.materials).map(m => `
-        <tr><td>${m.name}</td><td class="muted">${m.unit}</td>
+    tbody.innerHTML = live(appState.materials).map(m => {
+        const expanded = expandedMaterialId === m.id;
+        return `
+        <tr style="cursor:pointer;" onclick="toggleMaterialActions('${m.id}')">
+        <td>${m.name}</td><td class="muted">${m.unit}</td>
         <td class="mono" style="${m.stockAtelier < 5 ? 'color:#dc2626;font-weight:600;' : ''}">${m.stockAtelier}</td>
         <td class="mono">${fmt(m.unitPrice)}</td>
         <td class="mono">${fmt(stockValueOf(m))}</td>
-        <td style="white-space:nowrap;">
-            <button class="btn btn-outline btn-sm" onclick="openMaterialModal('${m.id}')">Modifier</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteMaterial('${m.id}')">Suppr.</button>
-        </td></tr>
-    `).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:16px;">Aucune matière enregistrée.</td></tr>';
+        <td style="white-space:nowrap;">${expanded ? `
+            <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();openMaterialModal('${m.id}')">Modifier</button>
+            <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();deleteMaterial('${m.id}')">Suppr.</button>
+        ` : `<span class="muted" style="font-size:11px;">•••</span>`}</td></tr>`;
+    }).join('') || '<tr><td colspan="6" class="muted" style="text-align:center;padding:16px;">Aucune matière enregistrée.</td></tr>';
 }
 function openMaterialModal(id) {
     const editing = !!id;
@@ -2075,11 +2076,11 @@ function undoProductionRun(runId) {
 function renderCouturierePage() {
     return `
     <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-        <h2 class="serif" style="font-size:18px;">Sous-traitance Couturière</h2>
+        <h2 class="serif" style="font-size:18px;">Sous-traitance, Confection & Compensations</h2>
         <div class="flex gap-2">
             <button class="btn btn-outline btn-sm" onclick="openSubcontractorModal()">+ Couturière</button>
             <button class="btn btn-outline btn-sm" onclick="openAdvanceModal()">+ Avance de Caisse</button>
-            <button class="btn btn-dark btn-sm" onclick="openOrderModal()">+ Commande</button>
+            <button class="btn btn-dark btn-sm" onclick="openOrderModal()">+ Nouvelle Commande Couturière</button>
         </div>
     </div>
     <div id="advances-block" class="card p3" style="margin-bottom:16px;"></div>
@@ -2087,6 +2088,7 @@ function renderCouturierePage() {
 }
 function after_couturiere() { renderAdvancesBlock(); renderOrdersBlock(); }
 function subcontractorName(id) { const s = appState.subcontractors.find(x => x.id === id); return s ? s.name : '—'; }
+
 function renderAdvancesBlock() {
     const block = document.getElementById('advances-block');
     if (!block) return;
@@ -2149,54 +2151,111 @@ function submitReconcile(e, id) {
     saveLocal(); closeModal(); renderAll();
 }
 
+// ---- Financier de la commande (coût façon + pénalités - acompte) ----
+function computeOrderFinancials(order) {
+    const lines = live(appState.subOrderLines).filter(l => l.orderId === order.id && !l.reallocatedToLineId);
+    const totalCost = lines.reduce((a, l) => a + l.qtyOrdered * (order.unitLaborCost || 0), 0);
+    const penalties = live(appState.subOrderPenalties || []).filter(p => p.orderId === order.id).reduce((a, p) => a + (p.penalty || 0), 0);
+    const finalTotal = totalCost - penalties;
+    const balanceDue = finalTotal - (order.advance || 0);
+    return { totalCost, penalties, finalTotal, balanceDue };
+}
+
 function renderOrdersBlock() {
     const block = document.getElementById('orders-block');
     if (!block) return;
     const orders = live(appState.subOrders);
-    block.innerHTML = orders.map(o => {
-        const lines = live(appState.subOrderLines).filter(l => l.orderId === o.id && !l.reallocatedToLineId);
-        const receptions = live(appState.subReceptions).filter(r => lines.some(l => l.id === r.orderLineId));
+    block.innerHTML = orders.map(order => {
+        const fin = computeOrderFinancials(order);
+        const activeLines = live(appState.subOrderLines).filter(l => l.orderId === order.id && !l.reallocatedToLineId);
+        const reallocatedLines = live(appState.subOrderLines).filter(l => l.orderId === order.id && l.reallocatedToLineId);
+        const receptions = live(appState.subReceptions).filter(r => activeLines.some(l => l.id === r.orderLineId));
         const totalConforme = receptions.reduce((a, r) => a + (r.qtyConforme || 0) + (r.qtyRetoucheConforme || 0), 0);
         const totalAAjuster = receptions.reduce((a, r) => a + Math.max(0, (r.qtyAAjuster || 0) - (r.qtyRetoucheConforme || 0) - (r.qtyRetoucheRejete || 0)), 0);
         const totalRejete = receptions.reduce((a, r) => a + (r.qtyRejete || 0) + (r.qtyRetoucheRejete || 0), 0);
+        const totalOrdered = activeLines.reduce((a, l) => a + l.qtyOrdered, 0);
+        const penaltyList = live(appState.subOrderPenalties || []).filter(p => p.orderId === order.id);
         return `<div class="card p3">
-            <div class="flex between center">
-                <div><span class="mono muted" style="font-size:10px;">${o.ref} — ${subcontractorName(o.subcontractorId)}</span>
-                <h4 class="serif" style="font-size:14px;">Commande du ${o.orderDate}${o.dueDate ? ' · échéance ' + o.dueDate : ''}</h4></div>
-                <span class="badge badge-sand">${o.status}</span>
+            <div class="flex gap-3">
+                <div style="width:64px;height:64px;border-radius:10px;overflow:hidden;flex-shrink:0;background:var(--sand);">
+                    <img src="${order.image || categoryPlaceholder('')}" style="width:100%;height:100%;object-fit:cover;">
+                </div>
+                <div style="flex:1;">
+                    <div class="flex between center">
+                        <div>
+                            <span class="mono muted" style="font-size:9px;">#${order.ref} — ${subcontractorName(order.subcontractorId)}</span>
+                            <h4 class="serif" style="font-size:14px;">Commandé le ${order.orderDate}${order.dueDate ? ' · échéance ' + order.dueDate : ''}</h4>
+                        </div>
+                        <span class="badge badge-sand">${order.status}</span>
+                    </div>
+                </div>
             </div>
-            <div style="margin:8px 0;">
-                ${lines.map(l => {
+
+            <div style="margin:10px 0;font-size:12px;">
+                ${activeLines.map(l => {
                     const p = getProduct(l.productId);
-                    return `<div class="flex between" style="font-size:12px;padding:3px 0;">
+                    return `<div class="flex between" style="padding:3px 0;">
                         <span>${l.qtyOrdered} × ${p ? p.name : '?'}</span>
                         <button class="btn btn-outline btn-sm" onclick="openReallocateModal('${l.id}')">🔄 Réallouer</button>
                     </div>`;
                 }).join('')}
             </div>
-            <div class="flex gap-3" style="font-size:11px;margin-bottom:8px;">
-                <span>✅ Conformes : <strong>${totalConforme}</strong></span>
-                <span style="color:var(--clay);">🔧 À ajuster : <strong>${totalAAjuster}</strong></span>
-                <span style="color:#dc2626;">❌ Rejetés : <strong>${totalRejete}</strong></span>
+
+            <div class="bg-sand" style="background:var(--cream);padding:8px 10px;border-radius:8px;font-size:11px;margin-bottom:8px;">
+                <div class="flex between"><span>Conformes reçus</span><strong>${totalConforme} / ${totalOrdered}</strong></div>
+                <div class="flex between" style="color:var(--clay);"><span>À ajuster (retouche)</span><strong>${totalAAjuster}</strong></div>
+                <div class="flex between" style="color:#dc2626;"><span>Rejetés / Défauts</span><strong>${totalRejete}</strong></div>
             </div>
-            <div class="flex gap-2">
-                <button class="btn btn-dark btn-sm" onclick="openReceptionModal('${o.id}')">+ Réception & Contrôle</button>
+
+            ${reallocatedLines.length ? `
+            <div style="background:rgba(138,154,134,.1);border:1px solid rgba(138,154,134,.25);padding:8px 10px;border-radius:8px;font-size:11px;margin-bottom:8px;">
+                <strong style="color:var(--sage-dark);display:block;margin-bottom:3px;">🔄 Substitutions & Modifications</strong>
+                ${reallocatedLines.map(l => {
+                    const oldP = getProduct(l.productId);
+                    const newLine = appState.subOrderLines.find(x => x.id === l.reallocatedToLineId);
+                    const newP = newLine ? getProduct(newLine.productId) : null;
+                    return `<div class="muted">Remplacement de ${l.qtyOrdered} × ${oldP ? oldP.name : '?'} par ${newLine ? newLine.qtyOrdered : ''} × ${newP ? newP.name : '?'}${l.reallocationReason ? ' — ' + l.reallocationReason : ''}</div>`;
+                }).join('')}
+            </div>` : ''}
+
+            ${penaltyList.length ? `
+            <div style="background:rgba(200,125,85,.08);border:1px solid rgba(200,125,85,.25);padding:8px 10px;border-radius:8px;font-size:11px;margin-bottom:8px;">
+                <strong style="color:var(--clay);display:block;margin-bottom:3px;">⚠️ Retours & Pénalités</strong>
+                ${penaltyList.map(p => `<div class="muted">${p.qty} pièce(s) — ${p.reason} (-${fmt(p.penalty)})</div>`).join('')}
+            </div>` : ''}
+
+            <div class="flex between" style="border-top:1px solid var(--sand);padding-top:8px;font-size:12px;">
+                <div><span class="muted" style="font-size:10px;display:block;">Acompte versé</span>${fmt(order.advance || 0)}
+                <span class="muted" style="font-size:10px;display:block;margin-top:2px;">Total révisé</span>${fmt(fin.finalTotal)}</div>
+                <div style="text-align:right;"><span class="muted" style="font-size:10px;display:block;">Solde restant dû</span>
+                <strong style="font-size:14px;color:${fin.balanceDue>0?'var(--clay)':'var(--sage-dark)'};">${fmt(fin.balanceDue)}</strong></div>
+            </div>
+
+            <div class="flex gap-2" style="margin-top:10px;flex-wrap:wrap;">
+                <button class="btn btn-dark btn-sm" onclick="openReceptionModal('${order.id}')">+ Réception / Qualité</button>
+                <button class="btn btn-outline btn-sm" onclick="openPenaltyModal('${order.id}')">⚠️ Retour / Pénalité</button>
             </div>
         </div>`;
     }).join('') || '<p class="muted">Aucune commande en cours.</p>';
 }
+
+// ---- Création de commande, avec estimation coût/bénéfice par ligne ----
 function openOrderModal() {
     openModal(`<h3 class="serif" style="font-size:16px;">Nouvelle Commande de Confection</h3>
         <form onsubmit="submitOrder(event)" style="margin-top:10px;">
             <label class="lbl">Couturière</label>
             <select class="input" id="of-sub" style="margin-bottom:10px;">${live(appState.subcontractors).map(s => `<option value="${s.id}">${s.name}</option>`).join('') || '<option value="">Ajoute d\'abord une couturière</option>'}</select>
+            <label class="lbl">Photo du modèle (fichier ou URL)</label>
+            <input type="file" id="of-img-file" accept="image/*" class="input" style="margin-bottom:6px;">
+            <input type="url" id="of-img-url" class="input" placeholder="https://..." style="margin-bottom:10px;">
             <label class="lbl">Date de la commande</label><input class="input" id="of-date" type="date" value="${todayISO()}" style="margin-bottom:10px;">
             <label class="lbl">Date limite de livraison souhaitée</label><input class="input" id="of-due" type="date" style="margin-bottom:10px;">
-            <label class="lbl">Coût façon par pièce (FCFA)</label><input class="input" id="of-labor" type="number" value="0" style="margin-bottom:10px;">
+            <label class="lbl">Coût façon par pièce (FCFA)</label><input class="input" id="of-labor" type="number" value="0" oninput="refreshOrderProfitPreview()" style="margin-bottom:10px;">
             <label class="lbl">Acompte Initial Versé (FCFA)</label><input class="input" id="of-advance" type="number" value="0" style="margin-bottom:10px;">
             <label class="lbl" style="margin-top:6px;">Modèle(s) commandé(s)</label>
             <div id="of-lines"></div>
-            <button type="button" class="btn btn-outline btn-sm" onclick="addOrderLineRow()" style="margin:6px 0 14px;">+ Ajouter un modèle</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addOrderLineRow()" style="margin:6px 0 10px;">+ Ajouter un modèle</button>
+            <div id="of-profit-preview" class="muted" style="font-size:11px;padding:10px;background:var(--cream);border:1px solid var(--sand);border-radius:8px;margin-bottom:14px;"></div>
             <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Lancer la Commande</button></div>
         </form>`);
     addOrderLineRow();
@@ -2206,29 +2265,62 @@ function addOrderLineRow() {
     const row = document.createElement('div');
     row.className = 'flex gap-2';
     row.style.marginBottom = '6px';
-    row.innerHTML = `<select class="input of-line-product">${live(appState.products).map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select>
-        <input class="input of-line-qty" type="number" value="1" min="1" style="max-width:80px;">
-        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove()">✕</button>`;
+    row.innerHTML = `<select class="input of-line-product" onchange="refreshOrderProfitPreview()">${live(appState.products).map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select>
+        <input class="input of-line-qty" type="number" value="1" min="1" style="max-width:80px;" oninput="refreshOrderProfitPreview()">
+        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove();refreshOrderProfitPreview();">✕</button>`;
     div.appendChild(row);
+    refreshOrderProfitPreview();
+}
+function refreshOrderProfitPreview() {
+    const preview = document.getElementById('of-profit-preview');
+    if (!preview) return;
+    const laborCost = parseInt(document.getElementById('of-labor')?.value) || 0;
+    const rows = Array.from(document.querySelectorAll('#of-lines > div'));
+    if (!rows.length) { preview.innerHTML = ''; return; }
+    let html = `<strong style="color:var(--charcoal);">Estimation coût & bénéfice par pièce :</strong><ul style="padding-left:16px;margin-top:4px;">`;
+    rows.forEach(row => {
+        const productId = row.querySelector('.of-line-product').value;
+        const qty = parseInt(row.querySelector('.of-line-qty').value) || 0;
+        const p = getProduct(productId);
+        if (!p) return;
+        const baseCost = costPriceOf(p);
+        const totalUnitCost = baseCost + laborCost;
+        const netPrice = p.desiredNetPrice || priceNet(p.pricePublic, 0);
+        const profitUnit = netPrice - totalUnitCost;
+        html += `<li style="color:${profitUnit>=0?'inherit':'#dc2626'};">${p.name} : coût ${fmt(totalUnitCost)} (dont ${fmt(laborCost)} façon) — prix net visé ${fmt(netPrice)} → bénéfice/pièce <strong>${fmt(profitUnit)}</strong> · pour ${qty} pièce(s) : <strong>${fmt(profitUnit*qty)}</strong></li>`;
+    });
+    html += `</ul>`;
+    preview.innerHTML = html;
 }
 function submitOrder(e) {
     e.preventDefault();
-    const order = newRecord({
-        ref: `BC-${String(live(appState.subOrders).length + 1).padStart(3, '0')}`,
-        subcontractorId: document.getElementById('of-sub').value,
-        orderDate: document.getElementById('of-date').value, dueDate: document.getElementById('of-due').value,
-        status: 'Lancé', unitLaborCost: parseInt(document.getElementById('of-labor').value) || 0,
-        advance: parseInt(document.getElementById('of-advance').value) || 0
-    });
-    appState.subOrders.push(order);
-    document.querySelectorAll('#of-lines > div').forEach(row => {
-        appState.subOrderLines.push(newRecord({
-            orderId: order.id, productId: row.querySelector('.of-line-product').value,
-            qtyOrdered: parseInt(row.querySelector('.of-line-qty').value) || 1
-        }));
-    });
-    saveLocal(); closeModal(); renderAll();
+    const urlImg = document.getElementById('of-img-url').value;
+    const fileInput = document.getElementById('of-img-file');
+    const save = (base64) => {
+        const order = newRecord({
+            ref: `BC-${String(live(appState.subOrders).length + 1).padStart(3, '0')}`,
+            subcontractorId: document.getElementById('of-sub').value,
+            image: base64 || urlImg || '',
+            orderDate: document.getElementById('of-date').value, dueDate: document.getElementById('of-due').value,
+            status: 'Lancé', unitLaborCost: parseInt(document.getElementById('of-labor').value) || 0,
+            advance: parseInt(document.getElementById('of-advance').value) || 0
+        });
+        appState.subOrders.push(order);
+        document.querySelectorAll('#of-lines > div').forEach(row => {
+            appState.subOrderLines.push(newRecord({
+                orderId: order.id, productId: row.querySelector('.of-line-product').value,
+                qtyOrdered: parseInt(row.querySelector('.of-line-qty').value) || 1
+            }));
+        });
+        saveLocal(); closeModal(); renderAll();
+    };
+    if (fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = ev => save(ev.target.result);
+        reader.readAsDataURL(fileInput.files[0]);
+    } else save(null);
 }
+
 function openReallocateModal(lineId) {
     openModal(`<h3 class="serif" style="font-size:16px;">Réallouer ce modèle</h3>
         <p class="muted" style="font-size:11px;margin-bottom:10px;">Transformer la quantité restante vers un autre modèle mieux maîtrisé.</p>
@@ -2253,6 +2345,28 @@ function submitReallocate(e, lineId) {
     touch(oldLine);
     saveLocal(); closeModal(); renderAll();
 }
+
+// ---- Retours & pénalités ----
+function openPenaltyModal(orderId) {
+    openModal(`<h3 class="serif" style="font-size:16px;">Signaler un Retour / Pénalité</h3>
+        <form onsubmit="submitPenalty(event,'${orderId}')" style="margin-top:10px;">
+            <label class="lbl">Quantité concernée</label><input class="input" id="pnf-qty" type="number" value="1" min="1" style="margin-bottom:10px;">
+            <label class="lbl">Motif</label><input class="input" id="pnf-reason" placeholder="Ex: tissu déchiré, mauvaise taille" required style="margin-bottom:10px;">
+            <label class="lbl">Montant déduit (FCFA)</label><input class="input" id="pnf-penalty" type="number" value="0" required style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-danger">Appliquer</button></div>
+        </form>`);
+}
+function submitPenalty(e, orderId) {
+    e.preventDefault();
+    if (!appState.subOrderPenalties) appState.subOrderPenalties = [];
+    appState.subOrderPenalties.push(newRecord({
+        orderId, qty: parseInt(document.getElementById('pnf-qty').value) || 1,
+        reason: document.getElementById('pnf-reason').value, penalty: parseInt(document.getElementById('pnf-penalty').value) || 0
+    }));
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ---- Réception & contrôle qualité ----
 function openReceptionModal(orderId) {
     const lines = live(appState.subOrderLines).filter(l => l.orderId === orderId && !l.reallocatedToLineId);
     openModal(`<h3 class="serif" style="font-size:16px;">Réception & Contrôle Qualité</h3>
@@ -2296,7 +2410,6 @@ function submitReception(e, orderId) {
     touch(order);
     saveLocal(); closeModal(); renderAll();
 }
-
 // ===================== 7. FOURNISSEURS & COURSES =====================
 function renderCoursesPage() {
     return `
@@ -2556,6 +2669,10 @@ function renderAidePage() {
 
 // ===================== EXPOSITION DES GESTIONNAIRES (onclick etc.) SUR WINDOW =====================
 window.cancelSale = cancelSale;
+window.openPenaltyModal = openPenaltyModal;
+window.refreshOrderProfitPreview = refreshOrderProfitPreview;
+window.submitPenalty = submitPenalty;
+window.toggleMaterialActions = toggleMaterialActions;
 window.confirmFabricationRun = confirmFabricationRun;
 window.handleRunFormSubmit = handleRunFormSubmit;
 window.openBOMEditorModalFor = openBOMEditorModalFor;
