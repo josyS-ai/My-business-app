@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Dear San'el — Gestion Atelier & Boutiques</title>
-<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiRGVhciBTYW4nZWwiLCJzaG9ydF9uYW1lIjoiRGVhclNhbmVsIiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiNGREZCRjciLCJ0aGVtZV9jb2xvciI6IiMxQTFBMUEifQ==">
+<title>Boutique — Tour de Contrôle</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjogIkJvdXRpcXVlIOKAlCBUb3VyIGRlIENvbnRyw7RsZSIsICJzaG9ydF9uYW1lIjogIkJvdXRpcXVlIFRkQyIsICJzdGFydF91cmwiOiAiLiIsICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLCAiYmFja2dyb3VuZF9jb2xvciI6ICIjRkRGQkY3IiwgInRoZW1lX2NvbG9yIjogIiMxQTFBMUEifQ==">
 <style>
 :root{
   --cream:#FDFBF7; --charcoal:#1A1A1A; --sage:#8A9A86; --sand:#E8E2D9;
@@ -78,6 +78,15 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
   .mobile-nav .icon{font-size:17px;}
 }
 #more-drawer{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--sand);border-radius:16px 16px 0 0;z-index:50;padding:16px;display:none;box-shadow:0 -10px 40px rgba(0,0,0,.15);}
+#ws-menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:59;display:none;}
+#ws-menu{position:fixed;top:14px;left:14px;width:280px;background:#fff;border:1px solid var(--sand);border-radius:12px;z-index:60;padding:10px;display:none;box-shadow:0 10px 40px rgba(0,0,0,.18);}
+@media(max-width:900px){#ws-menu{left:14px;right:14px;width:auto;top:56px;}}
+.ws-item{display:flex;justify-content:space-between;align-items:center;padding:9px 8px;border-radius:8px;font-size:13px;cursor:pointer;}
+.ws-item:hover{background:var(--cream);}
+.ws-item.active{background:var(--sand);font-weight:600;}
+.ws-item-actions{display:flex;gap:6px;}
+.ws-item-actions button{font-size:10px;background:none;border:none;color:var(--warmgray);padding:2px 4px;}
+.ws-item-actions button:hover{color:var(--charcoal);}
 #more-overlay{position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:49;display:none;}
 .pin-screen,.onboard-screen{position:fixed;inset:0;background:var(--cream);z-index:200;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:20px;text-align:center;}
 .pin-dots{display:flex;gap:12px;margin:20px 0;}
@@ -94,7 +103,7 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 
 <!-- ÉCRAN PIN -->
 <div class="pin-screen hidden" id="pin-screen">
-  <h2 class="serif" style="font-size:22px;">Dear San'el</h2>
+  <h2 class="serif" style="font-size:22px;">Boutique — Tour de Contrôle</h2>
   <p class="muted" id="pin-screen-label" style="font-size:12px;margin-top:6px;">Entre ton code PIN</p>
   <div class="pin-dots" id="pin-dots"></div>
   <div class="pin-pad" id="pin-pad"></div>
@@ -103,17 +112,17 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 
 <!-- ÉCRAN D'ACCUEIL / ONBOARDING -->
 <div class="onboard-screen hidden" id="onboard-screen">
-  <h1 class="serif" style="font-size:26px;">Dear San'el</h1>
+  <h1 class="serif" style="font-size:26px;">Boutique — Tour de Contrôle</h1>
   <p class="muted" style="max-width:340px;font-size:13px;margin:14px 0 22px;">
     Nouvel appareil détecté. Récupère tes données existantes avec ton code de synchronisation,
-    ou démarre avec le catalogue de départ.
+    ou démarre avec le catalogue de départ (Dear San'el).
   </p>
   <div class="card p4" style="max-width:340px;width:100%;margin-bottom:14px;">
     <label class="lbl">Code de synchronisation</label>
-    <input type="text" id="onboard-sync-code" class="input" placeholder="Ex: DSANEL2026" style="text-transform:uppercase;">
+    <input type="text" id="onboard-sync-code" class="input" placeholder="Ex: BOUTIQUE2026" style="text-transform:uppercase;">
     <button class="btn btn-dark" style="width:100%;margin-top:10px;" onclick="onboardRecoverFromSync()">Récupérer mes données</button>
   </div>
-  <button class="btn btn-outline" onclick="onboardStartFresh()">Démarrer avec le catalogue existant (54 articles)</button>
+  <button class="btn btn-outline" onclick="onboardStartFresh()">Démarrer avec le catalogue existant (Dear San'el, 54 articles)</button>
 </div>
 
 <!-- MODALE -->
@@ -123,12 +132,19 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 <div id="more-overlay" onclick="closeMoreDrawer()"></div>
 <div id="more-drawer"></div>
 
+<!-- MENU COMMERCES -->
+<div id="ws-menu-overlay" onclick="closeWorkspaceMenu()"></div>
+<div id="ws-menu"></div>
+
 <div id="app-root" class="hidden">
 
 <div class="app-layout">
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-brand">
-      <h1 class="serif" style="font-size:18px;">Dear San'el</h1>
+    <div class="sidebar-brand" style="cursor:pointer;" onclick="openWorkspaceMenu()">
+      <div class="flex between center">
+        <h1 class="serif" style="font-size:16px;" id="ws-name-sidebar">Boutique — Tour de Contrôle</h1>
+        <span class="muted" style="font-size:11px;">▾</span>
+      </div>
       <p class="muted" style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">Atelier · Boutiques · Rentabilité</p>
     </div>
     <nav class="sidebar-nav" id="sidebar-nav"></nav>
@@ -139,7 +155,7 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 
   <div class="content-col">
     <header class="mobile-top-header">
-      <h1 class="serif" style="font-size:17px;">Dear San'el</h1>
+      <h1 class="serif" style="font-size:15px;cursor:pointer;" id="ws-name-mobile" onclick="openWorkspaceMenu()">Boutique — Tour de Contrôle ▾</h1>
       <span id="sync-indicator-mobile" style="font-size:10px;" class="muted"><span class="sync-dot sync-idle"></span></span>
     </header>
 
@@ -245,26 +261,138 @@ function emptyState() {
     };
 }
 const COLLECTION_KEYS = Object.keys(emptyState());
+const LS_WORKSPACES_KEY = 'dearsanel_v5_workspaces';
+function workspaceDataKey(wsId) { return LS_KEY + '__' + wsId; }
 
 let appState = emptyState();
 let appMeta = { syncCode: '', pinHash: '', pinEnabled: false, lastSyncAt: null, deviceId: uuid() };
+let workspacesList = [];   // [{id, name, _ts, deleted}]
+let activeWorkspaceId = null;
+
+function getActiveWorkspaceMeta() { return workspacesList.find(w => w.id === activeWorkspaceId); }
+function currentWorkspaceName() { const w = getActiveWorkspaceMeta(); return w ? w.name : 'Boutique — Tour de Contrôle'; }
+function liveWorkspaces() { return workspacesList.filter(w => !w.deleted); }
+
+function loadWorkspacesList() {
+    try {
+        const raw = localStorage.getItem(LS_WORKSPACES_KEY);
+        if (raw) { const parsed = JSON.parse(raw); workspacesList = parsed.list || []; activeWorkspaceId = parsed.activeId || null; }
+    } catch (e) { console.error(e); }
+}
+function saveWorkspacesList() {
+    localStorage.setItem(LS_WORKSPACES_KEY, JSON.stringify({ list: workspacesList, activeId: activeWorkspaceId }));
+}
+function loadWorkspaceData(wsId) {
+    try {
+        const raw = localStorage.getItem(workspaceDataKey(wsId));
+        if (raw) return Object.assign(emptyState(), JSON.parse(raw));
+    } catch (e) { console.error(e); }
+    return emptyState();
+}
+function saveWorkspaceData(wsId, data) {
+    localStorage.setItem(workspaceDataKey(wsId), JSON.stringify(data));
+}
 
 function loadLocal() {
-    try {
-        const raw = localStorage.getItem(LS_KEY);
-        if (raw) appState = Object.assign(emptyState(), JSON.parse(raw));
-    } catch (e) { console.error(e); }
+    loadWorkspacesList();
+    if (!workspacesList.length) {
+        // Migration : reprend l'ancienne sauvegarde mono-commerce si elle existe (première ouverture de cette version)
+        let legacy = null;
+        try { const raw = localStorage.getItem(LS_KEY); if (raw) legacy = JSON.parse(raw); } catch (e) { console.error(e); }
+        const wsId = uuid();
+        workspacesList = [{ id: wsId, name: 'Boutique — Tour de Contrôle', _ts: nowTs(), deleted: false }];
+        activeWorkspaceId = wsId;
+        if (legacy) saveWorkspaceData(wsId, Object.assign(emptyState(), legacy));
+        saveWorkspacesList();
+    }
+    if (!activeWorkspaceId || !liveWorkspaces().find(w => w.id === activeWorkspaceId)) {
+        const firstLive = liveWorkspaces()[0];
+        activeWorkspaceId = firstLive ? firstLive.id : (workspacesList[0] && workspacesList[0].id);
+        saveWorkspacesList();
+    }
+    appState = loadWorkspaceData(activeWorkspaceId);
     try {
         const rawMeta = localStorage.getItem(LS_META_KEY);
         if (rawMeta) appMeta = Object.assign(appMeta, JSON.parse(rawMeta));
     } catch (e) { console.error(e); }
 }
 function saveLocal() {
-    localStorage.setItem(LS_KEY, JSON.stringify(appState));
+    saveWorkspaceData(activeWorkspaceId, appState);
+    const ws = getActiveWorkspaceMeta();
+    if (ws) ws._ts = nowTs();
+    saveWorkspacesList();
     localStorage.setItem(LS_META_KEY, JSON.stringify(appMeta));
 }
 function hasAnyLocalData() {
     return COLLECTION_KEYS.some(k => (appState[k] || []).length > 0);
+}
+
+// ---- Gestion des commerces (espaces séparés) ----
+function switchWorkspace(wsId) {
+    if (wsId === activeWorkspaceId) { closeWorkspaceMenu(); return; }
+    saveLocal();
+    activeWorkspaceId = wsId;
+    saveWorkspacesList();
+    appState = loadWorkspaceData(wsId);
+    closeWorkspaceMenu();
+    renderNav();
+    navigate('dashboard');
+    renderAll();
+}
+function createWorkspace() {
+    const name = prompt("Nom du nouveau commerce :");
+    if (!name || !name.trim()) return;
+    saveLocal();
+    const wsId = uuid();
+    workspacesList.push({ id: wsId, name: name.trim(), _ts: nowTs(), deleted: false });
+    activeWorkspaceId = wsId;
+    saveWorkspacesList();
+    appState = emptyState();
+    ensureDefaultTaxonomies();
+    saveWorkspaceData(wsId, appState);
+    closeWorkspaceMenu();
+    renderNav();
+    navigate('dashboard');
+    renderAll();
+}
+function renameWorkspace(wsId) {
+    const ws = workspacesList.find(w => w.id === wsId);
+    if (!ws) return;
+    const name = prompt("Nouveau nom du commerce :", ws.name);
+    if (name && name.trim()) { ws.name = name.trim(); ws._ts = nowTs(); saveWorkspacesList(); renderNav(); renderPage(currentPage); }
+}
+function deleteWorkspaceConfirm(wsId) {
+    if (liveWorkspaces().length <= 1) { alert("Impossible de supprimer le seul commerce restant."); return; }
+    if (!confirm("Supprimer ce commerce de la liste ? Ses données restent archivées et récupérables, mais il ne sera plus accessible depuis l'app.")) return;
+    const ws = workspacesList.find(w => w.id === wsId);
+    if (!ws) return;
+    ws.deleted = true; ws._ts = nowTs();
+    if (activeWorkspaceId === wsId) {
+        saveWorkspacesList();
+        const nextLive = liveWorkspaces()[0];
+        switchWorkspace(nextLive.id);
+    } else { saveWorkspacesList(); renderNav(); renderPage(currentPage); }
+}
+function openWorkspaceMenu() {
+    const menu = document.getElementById('ws-menu');
+    menu.innerHTML = `
+        <p class="muted" style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:6px 8px;">Mes commerces</p>
+        ${liveWorkspaces().map(w => `
+            <div class="ws-item ${w.id===activeWorkspaceId?'active':''}">
+                <span onclick="switchWorkspace('${w.id}')" style="flex:1;">${w.name}</span>
+                <span class="ws-item-actions">
+                    <button onclick="event.stopPropagation();renameWorkspace('${w.id}')" title="Renommer">✏️</button>
+                    ${liveWorkspaces().length > 1 ? `<button onclick="event.stopPropagation();deleteWorkspaceConfirm('${w.id}')" title="Retirer">🗑️</button>` : ''}
+                </span>
+            </div>`).join('')}
+        <div class="ws-item" style="border-top:1px solid var(--sand);margin-top:4px;padding-top:10px;color:var(--sage-dark);font-weight:600;" onclick="createWorkspace()">+ Nouveau commerce</div>
+    `;
+    menu.style.display = 'block';
+    document.getElementById('ws-menu-overlay').style.display = 'block';
+}
+function closeWorkspaceMenu() {
+    document.getElementById('ws-menu').style.display = 'none';
+    document.getElementById('ws-menu-overlay').style.display = 'none';
 }
 
 // touch() : marque un enregistrement comme modifié maintenant (pour la fusion par horodatage)
@@ -294,6 +422,42 @@ function mergeStates(localState, remoteState) {
     return merged;
 }
 
+// ---- Payload complet (tous les commerces) pour la synchronisation ----
+function buildFullSyncPayload() {
+    saveLocal();
+    return {
+        workspaces: workspacesList.map(w => ({
+            id: w.id, name: w.name, _ts: w._ts, deleted: !!w.deleted,
+            data: (w.id === activeWorkspaceId) ? appState : loadWorkspaceData(w.id)
+        }))
+    };
+}
+function applyFullSyncPayload(payload) {
+    if (!payload || !payload.workspaces || !payload.workspaces.length) return;
+    workspacesList = payload.workspaces.map(w => ({ id: w.id, name: w.name, _ts: w._ts || nowTs(), deleted: !!w.deleted }));
+    payload.workspaces.forEach(w => saveWorkspaceData(w.id, Object.assign(emptyState(), w.data)));
+    if (!activeWorkspaceId || !liveWorkspaces().find(w => w.id === activeWorkspaceId)) {
+        const firstLive = liveWorkspaces()[0];
+        activeWorkspaceId = firstLive ? firstLive.id : (workspacesList[0] && workspacesList[0].id);
+    }
+    saveWorkspacesList();
+    appState = loadWorkspaceData(activeWorkspaceId);
+}
+function mergeFullPayloads(localPayload, remotePayload) {
+    const map = new Map();
+    (localPayload.workspaces || []).forEach(w => map.set(w.id, w));
+    ((remotePayload && remotePayload.workspaces) || []).forEach(w => {
+        const existing = map.get(w.id);
+        if (!existing) { map.set(w.id, w); return; }
+        const newer = (w._ts || 0) > (existing._ts || 0) ? w : existing;
+        map.set(w.id, {
+            id: w.id, name: newer.name, _ts: Math.max(w._ts || 0, existing._ts || 0), deleted: !!newer.deleted,
+            data: mergeStates(existing.data, w.data)
+        });
+    });
+    return { workspaces: Array.from(map.values()) };
+}
+
 function setSyncIndicator(status, label) {
     const dotClass = status === 'ok' ? 'sync-ok' : status === 'err' ? 'sync-err' : 'sync-idle';
     const el = document.getElementById('sync-indicator');
@@ -311,7 +475,7 @@ async function sbFetchRemote(code) {
     const rows = await res.json();
     return rows && rows.length ? rows[0].payload : null;
 }
-async function sbPushState(code, state) {
+async function sbPushState(code, payload) {
     const url = `${SB_URL}/rest/v1/${SB_TABLE}?on_conflict=sync_code`;
     const res = await fetchWithTimeout(url, {
         method: 'POST',
@@ -320,7 +484,7 @@ async function sbPushState(code, state) {
             'Content-Type': 'application/json',
             Prefer: 'resolution=merge-duplicates,return=minimal'
         },
-        body: JSON.stringify([{ sync_code: code, payload: state, updated_at: new Date().toISOString() }])
+        body: JSON.stringify([{ sync_code: code, payload: payload, updated_at: new Date().toISOString() }])
     });
     if (!res.ok) throw new Error('Erreur d\'écriture Supabase: ' + res.status);
 }
@@ -333,14 +497,16 @@ async function syncNow(showAlerts) {
     setSyncIndicator('idle', 'Synchro...');
     try {
         const remote = await sbFetchRemote(appMeta.syncCode);
-        const merged = mergeStates(appState, remote);
-        appState = merged;
+        const localPayload = buildFullSyncPayload();
+        const merged = mergeFullPayloads(localPayload, remote);
+        applyFullSyncPayload(merged);
         await sbPushState(appMeta.syncCode, merged);
         appMeta.lastSyncAt = new Date().toISOString();
         saveLocal();
+        renderNav();
         renderAll();
         setSyncIndicator('ok', 'Synchronisé ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }));
-        if (showAlerts) alert("Synchronisation réussie. Données fusionnées avec le cloud.");
+        if (showAlerts) alert("Synchronisation réussie. Données fusionnées avec le cloud (tous commerces confondus).");
     } catch (e) {
         console.error(e);
         setSyncIndicator('err', 'Hors-ligne / échec');
@@ -349,9 +515,10 @@ async function syncNow(showAlerts) {
 }
 async function forceReplaceRemote() {
     if (!appMeta.syncCode) { alert("Configure d'abord un code de synchronisation."); return; }
-    if (!confirm("⚠️ Ceci va ÉCRASER les données du cloud avec celles de CET appareil, sans fusion. À utiliser uniquement pour nettoyer des doublons. Continuer ?")) return;
+    if (!confirm("⚠️ Ceci va ÉCRASER les données du cloud (tous commerces) avec celles de CET appareil, sans fusion. À utiliser uniquement pour nettoyer des doublons. Continuer ?")) return;
     try {
-        await sbPushState(appMeta.syncCode, appState);
+        const payload = buildFullSyncPayload();
+        await sbPushState(appMeta.syncCode, payload);
         appMeta.lastSyncAt = new Date().toISOString();
         saveLocal();
         setSyncIndicator('ok', 'Cloud écrasé (forcé)');
@@ -362,13 +529,14 @@ async function forceReplaceRemote() {
 }
 async function forceReplaceLocal() {
     if (!appMeta.syncCode) { alert("Configure d'abord un code de synchronisation."); return; }
-    if (!confirm("⚠️ Ceci va ÉCRASER les données de CET appareil avec celles du cloud, sans fusion. Continuer ?")) return;
+    if (!confirm("⚠️ Ceci va ÉCRASER les données de CET appareil (tous commerces) avec celles du cloud, sans fusion. Continuer ?")) return;
     try {
         const remote = await sbFetchRemote(appMeta.syncCode);
         if (!remote) { alert("Aucune donnée trouvée dans le cloud pour ce code."); return; }
-        appState = Object.assign(emptyState(), remote);
+        applyFullSyncPayload(remote);
         saveLocal();
         ensureDefaultTaxonomies();
+        renderNav();
         renderAll();
         setSyncIndicator('ok', 'Local écrasé (forcé)');
         alert("Cet appareil a été remplacé par les données du cloud.");
@@ -442,10 +610,11 @@ async function onboardRecoverFromSync() {
     appMeta.syncCode = code;
     try {
         const remote = await sbFetchRemote(code);
-        if (remote) {
-            appState = Object.assign(emptyState(), remote);
+        if (remote && remote.workspaces && remote.workspaces.length) {
+            applyFullSyncPayload(remote);
         } else {
             appState = freshState();
+            saveLocal();
             alert("Aucune donnée trouvée pour ce code — on démarre avec le catalogue existant, et ce code sera utilisé pour synchroniser désormais.");
         }
         saveLocal();
@@ -538,6 +707,12 @@ const PAGES = [
 let currentPage = 'dashboard';
 
 function renderNav() {
+    const wsName = currentWorkspaceName();
+    const wsSidebarEl = document.getElementById('ws-name-sidebar');
+    if (wsSidebarEl) wsSidebarEl.textContent = wsName;
+    const wsMobileEl = document.getElementById('ws-name-mobile');
+    if (wsMobileEl) wsMobileEl.textContent = wsName + ' ▾';
+
     const sidebar = document.getElementById('sidebar-nav');
     sidebar.innerHTML = PAGES.map(p => `<button id="dnav-${p.id}" onclick="navigate('${p.id}')"><span class="nav-icon">${p.icon}</span>${p.label}</button>`).join('');
 
@@ -1163,11 +1338,11 @@ function exportCataloguePDF() {
         const cat = getCategory(p.categoryId);
         return `<tr><td><img src="${productImage(p)}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td>${cat ? cat.name : ''}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td><td>${p.createdAt||''}</td></tr>`;
     }).join('');
-    printHTML(`<h2>Dear San'el — Catalogue des Créations</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Nom</th><th>Catégorie</th><th>Prix Public</th><th>Ajouté le</th></tr>${rows}</table>`);
+    printHTML(`<h2>${currentWorkspaceName()} — Catalogue des Créations</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Nom</th><th>Catégorie</th><th>Prix Public</th><th>Ajouté le</th></tr>${rows}</table>`);
 }
 function printHTML(innerHTML) {
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><title>Dear San'el</title></head><body>${innerHTML}</body></html>`);
+    w.document.write(`<html><head><title>${currentWorkspaceName()}</title></head><body>${innerHTML}</body></html>`);
     w.document.close(); w.focus();
     setTimeout(() => w.print(), 400);
 }
@@ -1620,7 +1795,7 @@ function generateBordereau() {
     }).join('');
 
     printHTML(`
-        <div style="text-align:center;"><h2>Dear San'el</h2><p>Bordereau de Dépôt — ${loc.name}</p>
+        <div style="text-align:center;"><h2>${currentWorkspaceName()}</h2><p>Bordereau de Dépôt — ${loc.name}</p>
         <p style="font-size:11px;">${mode === 'jour' ? 'Dépôts du ' + filterDate : 'Récapitulatif complet du stock en dépôt'} — édité le ${new Date().toLocaleDateString('fr-FR')}</p></div>
         <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:14px;">
         <tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Article</th><th>Qté</th><th>Prix Public</th><th>Total</th></tr>${rows}</table>
@@ -1629,7 +1804,7 @@ function generateBordereau() {
         <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;">
         <tr style="background:#FDF2EC;"><th>Réf</th><th>Article</th><th>Qté</th><th>Motif</th><th>Date</th></tr>${withdrawalRows}</table>` : ''}
         <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:12px;">
-            <span>Signature Dear San'el : ____________</span><span>Signature Boutique : ____________</span>
+            <span>Signature ${currentWorkspaceName()} : ____________</span><span>Signature Boutique : ____________</span>
         </div>`);
 }
 // ===================== 4. RAPPORTS =====================
@@ -1788,7 +1963,7 @@ function priceListRows(start, end) {
 }
 function exportRapportPDF() {
     const body = document.getElementById('rp-body').innerHTML;
-    printHTML(`<h2>Dear San'el — Rapport (${periodLabel(rapportPeriodType)})</h2>${body}`);
+    printHTML(`<h2>${currentWorkspaceName()} — Rapport (${periodLabel(rapportPeriodType)})</h2>${body}`);
 }
 function exportPriceListPDF() {
     const rows = live(appState.products).map(p => {
@@ -1797,7 +1972,7 @@ function exportPriceListPDF() {
         const net = p.desiredNetPrice || p.pricePublic;
         return `<tr><td><img src="${productImage(p)}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td>${cat?cat.name:''}</td><td style="text-align:right;">${cost?fmt(cost):'Non renseigné'}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td><td style="text-align:right;">${fmt(net)}</td></tr>`;
     }).join('');
-    printHTML(`<h2>Dear San'el — Liste des Prix</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Article</th><th>Catégorie</th><th>Coût Revient</th><th>Prix Public</th><th>Prix Net</th></tr>${rows}</table>`);
+    printHTML(`<h2>${currentWorkspaceName()} — Liste des Prix</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Article</th><th>Catégorie</th><th>Coût Revient</th><th>Prix Public</th><th>Prix Net</th></tr>${rows}</table>`);
 }
 // ===================== 5. MATIÈRES PREMIÈRES (BOM) =====================
 function renderMatieresPage() {
@@ -2414,63 +2589,144 @@ function submitReception(e, orderId) {
 function renderCoursesPage() {
     return `
     <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-        <h2 class="serif" style="font-size:18px;">Fournisseurs & Courses</h2>
-        <div class="flex gap-2">
-            <button class="btn btn-outline btn-sm" onclick="openSupplierModal()">+ Fournisseur</button>
-            <button class="btn btn-dark btn-sm" onclick="openShoppingModal()">+ Article à acheter</button>
-        </div>
+        <div><h2 class="serif" style="font-size:18px;">Fournisseurs & Liste de Courses Intelligente</h2>
+        <p class="muted" style="font-size:11px;">Articles à acheter avec quantité, unité et budget prévisionnel — reliée au stock de matières</p></div>
+        <button class="btn btn-dark btn-sm" onclick="openShoppingModal()">+ Ajouter un Article à Acheter</button>
     </div>
-    <div class="grid g2">
-        <div class="card p3"><h4 class="serif" style="font-size:13px;margin-bottom:8px;">Fournisseurs</h4><div id="sup-list"></div></div>
-        <div class="card p3"><h4 class="serif" style="font-size:13px;margin-bottom:8px;">Liste de courses</h4><div id="shop-list"></div></div>
+
+    <div id="low-stock-block" class="card p3" style="margin-bottom:16px;border-left:3px solid var(--clay);"></div>
+
+    <div class="grid" style="grid-template-columns:1fr 2fr;gap:16px;align-items:start;">
+        <div class="card p3">
+            <div class="flex between center" style="margin-bottom:8px;">
+                <h4 class="serif" style="font-size:13px;">🏬 Répertoire Fournisseurs</h4>
+                <button class="btn btn-outline btn-sm" onclick="openSupplierModal()">+ Nouveau</button>
+            </div>
+            <div id="sup-list" style="max-height:400px;overflow-y:auto;"></div>
+        </div>
+        <div class="card p3">
+            <div class="flex between center" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+                <h4 class="serif" style="font-size:13px;">🛒 Liste d'Achat Marché & Matériaux</h4>
+                <span id="shopping-total" class="badge badge-sage" style="font-size:11px;padding:4px 10px;"></span>
+            </div>
+            <div id="shop-list"></div>
+        </div>
     </div>`;
 }
-function after_courses() { renderSuppliersList(); renderShoppingList(); }
+function after_courses() { renderLowStockBlock(); renderSuppliersList(); renderShoppingList(); }
+
+function renderLowStockBlock() {
+    const el = document.getElementById('low-stock-block');
+    if (!el) return;
+    const lowStock = live(appState.materials).filter(m => m.stockAtelier < 5);
+    el.innerHTML = `<h4 class="serif" style="font-size:13px;margin-bottom:8px;">⚠️ Matières en stock bas</h4>
+    ${lowStock.length ? lowStock.map(m => `
+        <div class="flex between center" style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--sand);">
+            <span>${m.name} — <strong style="color:#dc2626;">${m.stockAtelier} ${m.unit}</strong> restant(s)</span>
+            <button class="btn btn-outline btn-sm" onclick="openShoppingModal('${m.id}')">+ Ajouter à la liste</button>
+        </div>`).join('') : '<p class="muted" style="font-size:12px;">Tous les stocks de matières sont à un niveau correct.</p>'}`;
+}
 function renderSuppliersList() {
     const el = document.getElementById('sup-list'); if (!el) return;
-    el.innerHTML = live(appState.suppliers).map(s => `<div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--sand);"><strong>${s.name}</strong><br><span class="muted">${s.contact || ''}</span></div>`).join('') || '<p class="muted" style="font-size:12px;">Aucun fournisseur.</p>';
+    el.innerHTML = live(appState.suppliers).map(s => `
+        <div style="font-size:12px;padding:8px 0;border-bottom:1px solid var(--sand);">
+            <strong>${s.name}</strong><br>
+            <span class="muted">${s.contact || ''}${s.notes ? ' — ' + s.notes : ''}</span>
+        </div>`).join('') || '<p class="muted" style="font-size:12px;">Aucun fournisseur.</p>';
 }
 function renderShoppingList() {
     const el = document.getElementById('shop-list'); if (!el) return;
-    el.innerHTML = live(appState.shoppingItems).map(i => `
-        <div class="flex between center" style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--sand);">
-            <span><input type="checkbox" ${i.isChecked?'checked':''} onchange="toggleShoppingItem('${i.id}')"> ${i.label} — ${i.qty} ${i.unit} <span class="muted">(${i.purchaseDate||''})</span></span>
-            <strong>${fmt((i.qty||1)*(i.unitPrice||0))}</strong>
+    const items = live(appState.shoppingItems);
+    el.innerHTML = items.map(i => `
+        <div class="flex between center" style="font-size:12px;padding:7px 0;border-bottom:1px solid var(--sand);">
+            <span style="${i.isChecked ? 'text-decoration:line-through;color:var(--warmgray);' : ''}">
+                <input type="checkbox" ${i.isChecked?'checked':''} onchange="toggleShoppingItem('${i.id}')" style="margin-right:6px;">
+                ${i.label} — ${i.qty} ${i.unit}${i.materialId ? ' <span class="muted" style="font-size:10px;">(lié au stock)</span>' : ''}
+            </span>
+            <span class="flex gap-2 center">
+                <strong>${fmt((i.qty||1)*(i.unitPrice||0))}</strong>
+                <button class="btn btn-danger btn-sm" onclick="deleteShoppingItem('${i.id}')">Suppr.</button>
+            </span>
         </div>`).join('') || '<p class="muted" style="font-size:12px;">Liste vide.</p>';
+    const total = items.filter(i => i.isChecked).reduce((a, i) => a + (i.qty||1)*(i.unitPrice||0), 0);
+    const totalEl = document.getElementById('shopping-total');
+    if (totalEl) totalEl.textContent = `Total Sélectionné : ${fmt(total)}`;
 }
-function toggleShoppingItem(id) { const i = appState.shoppingItems.find(x => x.id === id); i.isChecked = !i.isChecked; touch(i); saveLocal(); renderAll(); }
+function toggleShoppingItem(id) {
+    const i = appState.shoppingItems.find(x => x.id === id);
+    i.isChecked = !i.isChecked;
+    if (i.materialId) {
+        const mat = appState.materials.find(m => m.id === i.materialId);
+        if (mat) {
+            if (i.isChecked && !i.stockApplied) { mat.stockAtelier += (i.qty || 0); i.stockApplied = true; touch(mat); }
+            else if (!i.isChecked && i.stockApplied) { mat.stockAtelier = Math.max(0, mat.stockAtelier - (i.qty || 0)); i.stockApplied = false; touch(mat); }
+        }
+    }
+    touch(i); saveLocal(); renderAll();
+}
+function deleteShoppingItem(id) {
+    if (!confirm("Supprimer cet article de la liste ?")) return;
+    const i = appState.shoppingItems.find(x => x.id === id);
+    if (i && i.materialId && i.stockApplied) {
+        const mat = appState.materials.find(m => m.id === i.materialId);
+        if (mat) { mat.stockAtelier = Math.max(0, mat.stockAtelier - (i.qty || 0)); touch(mat); }
+    }
+    softDelete('shoppingItems', id);
+    saveLocal(); renderAll();
+}
 function openSupplierModal() {
     openModal(`<h3 class="serif" style="font-size:16px;">Nouveau Fournisseur</h3>
         <form onsubmit="submitSupplier(event)" style="margin-top:10px;">
-            <label class="lbl">Nom</label><input class="input" id="supf-name" required style="margin-bottom:10px;">
-            <label class="lbl">Contact</label><input class="input" id="supf-contact" style="margin-bottom:14px;">
+            <label class="lbl">Nom / Stand Fournisseur</label><input class="input" id="supf-name" required style="margin-bottom:10px;">
+            <label class="lbl">Contact</label><input class="input" id="supf-contact" style="margin-bottom:10px;">
+            <label class="lbl">Notes d'emplacement</label><textarea class="input" id="supf-notes" style="margin-bottom:14px;"></textarea>
             <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
         </form>`);
 }
 function submitSupplier(e) {
     e.preventDefault();
-    appState.suppliers.push(newRecord({ name: document.getElementById('supf-name').value, contact: document.getElementById('supf-contact').value }));
+    appState.suppliers.push(newRecord({
+        name: document.getElementById('supf-name').value, contact: document.getElementById('supf-contact').value,
+        notes: document.getElementById('supf-notes').value
+    }));
     saveLocal(); closeModal(); renderAll();
 }
-function openShoppingModal() {
+function openShoppingModal(materialId) {
+    const mat = materialId ? appState.materials.find(m => m.id === materialId) : null;
     openModal(`<h3 class="serif" style="font-size:16px;">Article à acheter</h3>
         <form onsubmit="submitShopping(event)" style="margin-top:10px;">
-            <label class="lbl">Désignation</label><input class="input" id="shf-label" required style="margin-bottom:10px;">
+            <label class="lbl">Lier à une matière du stock (optionnel)</label>
+            <select class="input" id="shf-material" onchange="handleShoppingMaterialChange()" style="margin-bottom:10px;">
+                <option value="">— Article libre (non lié au stock) —</option>
+                ${live(appState.materials).map(m => `<option value="${m.id}" ${mat && mat.id===m.id?'selected':''}>${m.name}</option>`).join('')}
+            </select>
+            <label class="lbl">Désignation</label><input class="input" id="shf-label" value="${mat ? mat.name : ''}" required style="margin-bottom:10px;">
             <div class="grid g2" style="margin-bottom:10px;">
                 <div><label class="lbl">Quantité</label><input class="input" id="shf-qty" type="number" value="1"></div>
-                <div><label class="lbl">Unité</label><input class="input" id="shf-unit" value="Unité"></div>
+                <div><label class="lbl">Unité</label><input class="input" id="shf-unit" value="${mat ? mat.unit : 'Unité'}"></div>
             </div>
-            <label class="lbl">Prix unitaire estimé (FCFA)</label><input class="input" id="shf-price" type="number" value="0" style="margin-bottom:10px;">
-            <label class="lbl">Date</label><input class="input" id="shf-date" type="date" value="${todayISO()}" style="margin-bottom:14px;">
+            <label class="lbl">Prix unitaire estimé (FCFA)</label><input class="input" id="shf-price" type="number" value="${mat ? mat.unitPrice : 0}" style="margin-bottom:10px;">
+            <label class="lbl">Date</label><input class="input" id="shf-date" type="date" value="${todayISO()}" style="margin-bottom:6px;">
+            <p class="muted" style="font-size:10px;margin-bottom:10px;">Si liée à une matière, cocher cet article une fois acheté renflouera automatiquement son stock.</p>
             <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
         </form>`);
+}
+function handleShoppingMaterialChange() {
+    const matId = document.getElementById('shf-material').value;
+    const mat = appState.materials.find(m => m.id === matId);
+    if (mat) {
+        document.getElementById('shf-label').value = mat.name;
+        document.getElementById('shf-unit').value = mat.unit;
+        document.getElementById('shf-price').value = mat.unitPrice;
+    }
 }
 function submitShopping(e) {
     e.preventDefault();
     appState.shoppingItems.push(newRecord({
         label: document.getElementById('shf-label').value, qty: parseFloat(document.getElementById('shf-qty').value) || 1,
         unit: document.getElementById('shf-unit').value, unitPrice: parseInt(document.getElementById('shf-price').value) || 0,
-        purchaseDate: document.getElementById('shf-date').value, isChecked: false
+        purchaseDate: document.getElementById('shf-date').value, isChecked: false,
+        materialId: document.getElementById('shf-material').value || null, stockApplied: false
     }));
     saveLocal(); closeModal(); renderAll();
 }
@@ -2479,30 +2735,79 @@ function submitShopping(e) {
 function renderMarketingPage() {
     return `
     <div class="flex between center" style="margin-bottom:12px;">
-        <h2 class="serif" style="font-size:18px;">Planning Marketing</h2>
-        <button class="btn btn-dark btn-sm" onclick="openMarketingModal()">+ Planifier</button>
+        <div><h2 class="serif" style="font-size:18px;">Planning Marketing & Communication</h2>
+        <p class="muted" style="font-size:11px;">Calendrier éditorial multi-canal, banque de légendes et lancements de collections</p></div>
+        <button class="btn btn-dark btn-sm" onclick="openMarketingModal()">+ Planifier une Publication</button>
     </div>
-    <div id="mk-list" class="grid g2"></div>`;
+    <div class="grid" style="grid-template-columns:2fr 1fr;gap:16px;align-items:start;">
+        <div class="card p3">
+            <h4 class="serif" style="font-size:13px;margin-bottom:8px;">📅 Publications & Reels Prévus</h4>
+            <div id="mk-list" class="grid g2"></div>
+        </div>
+        <div class="card p3">
+            <h4 class="serif" style="font-size:13px;margin-bottom:8px;">📝 Banque de Captions & Hashtags</h4>
+            <div id="mk-captions-list" style="margin-bottom:10px;"></div>
+            <button class="btn btn-outline btn-sm" style="width:100%;" onclick="openCaptionModal()">+ Nouvelle Légende / Idée</button>
+        </div>
+    </div>`;
 }
 function after_marketing() {
     const el = document.getElementById('mk-list'); if (!el) return;
-    el.innerHTML = live(appState.marketingPosts).map(p => `
-        <div class="card p3"><span class="badge badge-sand">${p.platform||''}</span>
-        <h4 class="serif" style="font-size:13px;margin-top:6px;">${p.title}</h4>
-        <p class="muted" style="font-size:11px;">${p.scheduledDate||''} — ${p.status}</p></div>`).join('') || '<p class="muted">Rien de planifié.</p>';
+    el.innerHTML = live(appState.marketingPosts).map(p => {
+        const linked = p.linkedProductId ? getProduct(p.linkedProductId) : null;
+        return `<div class="card p3">
+            <span class="badge badge-sand">${p.platform||''}</span>
+            <h4 class="serif" style="font-size:13px;margin-top:6px;">${p.title}</h4>
+            <p class="muted" style="font-size:11px;">${p.scheduledDate||''}</p>
+            ${linked ? `<p class="muted" style="font-size:10px;">🔗 ${linked.name}</p>` : ''}
+            <span class="badge badge-sage" style="margin-top:4px;display:inline-block;">${p.status}</span>
+        </div>`;
+    }).join('') || '<p class="muted">Rien de planifié.</p>';
+    const capEl = document.getElementById('mk-captions-list'); if (!capEl) return;
+    capEl.innerHTML = live(appState.marketingCaptions).map(c => `
+        <div style="padding:8px 0;border-bottom:1px solid var(--sand);font-size:12px;">
+            <span class="mono" style="color:var(--sage-dark);font-weight:600;font-size:11px;">${c.tag}</span>
+            <p class="muted" style="font-style:italic;margin-top:2px;">"${c.text}"</p>
+        </div>`).join('') || '<p class="muted" style="font-size:12px;">Aucune légende enregistrée.</p>';
 }
 function openMarketingModal() {
     openModal(`<h3 class="serif" style="font-size:16px;">Planifier une Publication</h3>
         <form onsubmit="submitMarketing(event)" style="margin-top:10px;">
             <label class="lbl">Plateforme</label><input class="input" id="mkf-platform" value="Instagram Reel" style="margin-bottom:10px;">
-            <label class="lbl">Titre</label><input class="input" id="mkf-title" required style="margin-bottom:10px;">
-            <label class="lbl">Date prévue</label><input class="input" id="mkf-date" type="date" style="margin-bottom:14px;">
+            <label class="lbl">Titre / Idée de Contenu</label><input class="input" id="mkf-title" required style="margin-bottom:10px;">
+            <label class="lbl">Article lié (optionnel)</label>
+            <select class="input" id="mkf-product" style="margin-bottom:10px;">
+                <option value="">— Aucun —</option>
+                ${live(appState.products).map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+            </select>
+            <label class="lbl">Date & heure prévue</label><input class="input" id="mkf-date" placeholder="Ex: Vendredi 18h ou 2026-09-20" style="margin-bottom:10px;">
+            <label class="lbl">Statut</label>
+            <select class="input" id="mkf-status" style="margin-bottom:14px;">
+                <option value="Idée">Idée</option><option value="En création">En création</option><option value="Prêt">Prêt</option><option value="Publié">Publié</option>
+            </select>
             <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Planifier</button></div>
         </form>`);
 }
 function submitMarketing(e) {
     e.preventDefault();
-    appState.marketingPosts.push(newRecord({ platform: document.getElementById('mkf-platform').value, title: document.getElementById('mkf-title').value, scheduledDate: document.getElementById('mkf-date').value, status: 'Idée' }));
+    appState.marketingPosts.push(newRecord({
+        platform: document.getElementById('mkf-platform').value, title: document.getElementById('mkf-title').value,
+        linkedProductId: document.getElementById('mkf-product').value || null,
+        scheduledDate: document.getElementById('mkf-date').value, status: document.getElementById('mkf-status').value
+    }));
+    saveLocal(); closeModal(); renderAll();
+}
+function openCaptionModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Nouvelle Légende / Hashtag</h3>
+        <form onsubmit="submitCaption(event)" style="margin-top:10px;">
+            <label class="lbl">Tag / Thème</label><input class="input" id="capf-tag" placeholder="#DearSanel" required style="margin-bottom:10px;">
+            <label class="lbl">Texte de la légende</label><textarea class="input" id="capf-text" required style="margin-bottom:14px;" rows="3"></textarea>
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
+        </form>`);
+}
+function submitCaption(e) {
+    e.preventDefault();
+    appState.marketingCaptions.push(newRecord({ tag: document.getElementById('capf-tag').value, text: document.getElementById('capf-text').value }));
     saveLocal(); closeModal(); renderAll();
 }
 
@@ -2510,30 +2815,53 @@ function submitMarketing(e) {
 function renderRDPage() {
     return `
     <div class="flex between center" style="margin-bottom:12px;">
-        <h2 class="serif" style="font-size:18px;">Carnet R&D</h2>
-        <button class="btn btn-dark btn-sm" onclick="openRDModal()">+ Nouvelle Idée</button>
+        <div><h2 class="serif" style="font-size:18px;">Carnet R&D & Suivi de Création</h2>
+        <p class="muted" style="font-size:11px;">Croquis, prototypes, tests de matières</p></div>
+        <button class="btn btn-dark btn-sm" onclick="openRDModal()">+ Nouvelle Idée Prototype</button>
     </div>
     <div id="rd-list" class="grid g3"></div>`;
 }
 function after_rd() {
     const el = document.getElementById('rd-list'); if (!el) return;
     el.innerHTML = live(appState.rdItems).map(r => `
-        <div class="card p3"><span class="badge badge-sand">${r.status}</span>
-        <h4 class="serif" style="font-size:13px;margin-top:6px;">${r.title}</h4>
-        <p class="muted" style="font-size:11px;">${r.description||''}</p></div>`).join('') || '<p class="muted">Aucun prototype en cours.</p>';
+        <div class="card p3">
+            <img src="${r.image || categoryPlaceholder('')}" style="width:100%;height:130px;object-fit:cover;border-radius:8px;margin-bottom:8px;">
+            <span class="badge badge-sand">${r.status}</span>
+            <h4 class="serif" style="font-size:13px;margin-top:6px;">${r.title}</h4>
+            <p class="muted" style="font-size:11px;">${r.description||''}</p>
+        </div>`).join('') || '<p class="muted">Aucun prototype en cours.</p>';
 }
 function openRDModal() {
     openModal(`<h3 class="serif" style="font-size:16px;">Nouvelle Idée Prototype</h3>
         <form onsubmit="submitRD(event)" style="margin-top:10px;">
-            <label class="lbl">Titre</label><input class="input" id="rdf-title" required style="margin-bottom:10px;">
-            <label class="lbl">Description</label><textarea class="input" id="rdf-desc" style="margin-bottom:14px;"></textarea>
+            <label class="lbl">Titre du Prototype</label><input class="input" id="rdf-title" required style="margin-bottom:10px;">
+            <label class="lbl">Photo / Croquis (fichier ou URL)</label>
+            <input type="file" id="rdf-img-file" accept="image/*" class="input" style="margin-bottom:6px;">
+            <input type="url" id="rdf-img-url" class="input" placeholder="https://..." style="margin-bottom:10px;">
+            <label class="lbl">Description / Notes</label><textarea class="input" id="rdf-desc" style="margin-bottom:10px;" rows="3"></textarea>
+            <label class="lbl">Statut</label>
+            <select class="input" id="rdf-status" style="margin-bottom:14px;">
+                <option value="Idée">Idée</option><option value="Prototype">Prototype</option><option value="Test Matière">Test Matière</option><option value="Validé">Validé</option>
+            </select>
             <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Ajouter</button></div>
         </form>`);
 }
 function submitRD(e) {
     e.preventDefault();
-    appState.rdItems.push(newRecord({ title: document.getElementById('rdf-title').value, description: document.getElementById('rdf-desc').value, status: 'Idée' }));
-    saveLocal(); closeModal(); renderAll();
+    const title = document.getElementById('rdf-title').value;
+    const description = document.getElementById('rdf-desc').value;
+    const status = document.getElementById('rdf-status').value;
+    const urlImg = document.getElementById('rdf-img-url').value;
+    const fileInput = document.getElementById('rdf-img-file');
+    const save = (base64) => {
+        appState.rdItems.push(newRecord({ title, description, status, image: base64 || urlImg || '' }));
+        saveLocal(); closeModal(); renderAll();
+    };
+    if (fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = ev => save(ev.target.result);
+        reader.readAsDataURL(fileInput.files[0]);
+    } else save(null);
 }
 
 // ===================== 10. PARAMÈTRES =====================
@@ -2543,10 +2871,25 @@ function renderParametresPage() {
     <p class="muted" style="font-size:12px;margin-bottom:16px;">Sécurité, synchronisation et gestion des données.</p>
 
     <div class="card p4" style="margin-bottom:12px;">
+        <h4 class="serif" style="font-size:14px;">🏢 Mes Commerces</h4>
+        <p class="muted" style="font-size:11px;margin:6px 0 10px;">Chaque commerce a son propre catalogue, ses propres stocks et rapports, complètement séparés.</p>
+        ${liveWorkspaces().map(w => `
+            <div class="flex between center" style="font-size:12px;padding:7px 0;border-bottom:1px solid var(--sand);">
+                <span>${w.name} ${w.id===activeWorkspaceId?'<span class="badge badge-sage">Actif</span>':''}</span>
+                <span class="flex gap-2">
+                    ${w.id!==activeWorkspaceId ? `<button class="btn btn-outline btn-sm" onclick="switchWorkspace('${w.id}')">Activer</button>` : ''}
+                    <button class="btn btn-outline btn-sm" onclick="renameWorkspace('${w.id}')">Renommer</button>
+                    ${liveWorkspaces().length>1 ? `<button class="btn btn-danger btn-sm" onclick="deleteWorkspaceConfirm('${w.id}')">Retirer</button>` : ''}
+                </span>
+            </div>`).join('')}
+        <button class="btn btn-dark btn-sm" style="margin-top:10px;" onclick="createWorkspace()">+ Nouveau commerce</button>
+    </div>
+
+    <div class="card p4" style="margin-bottom:12px;">
         <h4 class="serif" style="font-size:14px;">🔄 Synchronisation entre appareils</h4>
-        <p class="muted" style="font-size:11px;margin:6px 0 10px;">Choisis un code (identique sur tous tes appareils) pour fusionner tes données automatiquement.</p>
+        <p class="muted" style="font-size:11px;margin:6px 0 10px;">Un seul code couvre TOUS tes commerces — choisis-le identique sur tous tes appareils pour tout fusionner automatiquement.</p>
         <label class="lbl">Code de synchronisation</label>
-        <input class="input" id="set-sync-code" value="${appMeta.syncCode || ''}" placeholder="Ex: DSANEL2026" style="text-transform:uppercase;margin-bottom:8px;">
+        <input class="input" id="set-sync-code" value="${appMeta.syncCode || ''}" placeholder="Ex: BOUTIQUE2026" style="text-transform:uppercase;margin-bottom:8px;">
         <div class="flex gap-2" style="flex-wrap:wrap;">
             <button class="btn btn-dark btn-sm" onclick="saveSyncCode()">Enregistrer le code</button>
             <button class="btn btn-outline btn-sm" onclick="syncNow(true)">Synchroniser maintenant</button>
@@ -2600,7 +2943,8 @@ function saveSyncCode() {
     syncNow(true);
 }
 function exportJSONBackup() {
-    downloadFile(`Sauvegarde_DearSanel_${todayISO()}.json`, JSON.stringify(appState, null, 2), 'application/json');
+    const payload = buildFullSyncPayload();
+    downloadFile(`Sauvegarde_${todayISO()}.json`, JSON.stringify(payload, null, 2), 'application/json');
 }
 function importJSONBackup(evt) {
     const file = evt.target.files[0];
@@ -2609,18 +2953,24 @@ function importJSONBackup(evt) {
     reader.onload = e => {
         try {
             const imported = JSON.parse(e.target.result);
-            appState = mergeStates(appState, imported);
-            saveLocal(); renderAll();
-            alert("Import réussi — les données ont été fusionnées avec celles déjà présentes.");
+            if (imported.workspaces) {
+                const merged = mergeFullPayloads(buildFullSyncPayload(), imported);
+                applyFullSyncPayload(merged);
+                saveLocal(); renderNav(); renderAll();
+                alert("Import réussi — tous les commerces ont été fusionnés avec ceux déjà présents.");
+            } else if (imported.categories || imported.products) {
+                appState = mergeStates(appState, imported);
+                saveLocal(); renderAll();
+                alert(`Import réussi (ancienne sauvegarde) — fusionné dans le commerce actif "${currentWorkspaceName()}".`);
+            } else { alert("Fichier invalide."); }
         } catch (err) { alert("Fichier invalide."); }
     };
     reader.readAsText(file);
 }
 function resetAllData() {
-    if (!confirm("⚠️ Ceci efface TOUTES les données de cet appareil. Confirme ?")) return;
+    if (!confirm(`⚠️ Ceci efface toutes les données du commerce "${currentWorkspaceName()}" sur cet appareil (les autres commerces ne sont pas touchés). Confirme ?`)) return;
     if (!confirm("Dernière confirmation : es-tu vraiment sûre ? Pense à exporter une sauvegarde avant si besoin.")) return;
     appState = emptyState();
-    localStorage.removeItem(LS_KEY);
     saveLocal();
     renderAll();
 }
@@ -2669,6 +3019,16 @@ function renderAidePage() {
 
 // ===================== EXPOSITION DES GESTIONNAIRES (onclick etc.) SUR WINDOW =====================
 window.cancelSale = cancelSale;
+window.closeWorkspaceMenu = closeWorkspaceMenu;
+window.createWorkspace = createWorkspace;
+window.deleteWorkspaceConfirm = deleteWorkspaceConfirm;
+window.openWorkspaceMenu = openWorkspaceMenu;
+window.renameWorkspace = renameWorkspace;
+window.switchWorkspace = switchWorkspace;
+window.openCaptionModal = openCaptionModal;
+window.submitCaption = submitCaption;
+window.deleteShoppingItem = deleteShoppingItem;
+window.handleShoppingMaterialChange = handleShoppingMaterialChange;
 window.openPenaltyModal = openPenaltyModal;
 window.refreshOrderProfitPreview = refreshOrderProfitPreview;
 window.submitPenalty = submitPenalty;
