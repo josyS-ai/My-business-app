@@ -248,7 +248,9 @@ function freshState() {
         collectionInvestments: [],
         withdrawals: [],
         productionRuns: [],
-        subOrderPenalties: []
+        subOrderPenalties: [],
+        customerOrders: [],
+        customerOrderLines: []
     };
 }
 function emptyState() {
@@ -257,7 +259,8 @@ function emptyState() {
         sales: [], loans: [], subcontractors: [], subAdvances: [], subOrders: [],
         subOrderLines: [], subReceptions: [], suppliers: [], shoppingItems: [],
         marketingPosts: [], marketingCaptions: [], rdItems: [], collections: [],
-        productCollections: [], collectionInvestments: [], withdrawals: [], productionRuns: [], subOrderPenalties: []
+        productCollections: [], collectionInvestments: [], withdrawals: [], productionRuns: [], subOrderPenalties: [],
+        customerOrders: [], customerOrderLines: []
     };
 }
 const COLLECTION_KEYS = Object.keys(emptyState());
@@ -660,6 +663,8 @@ function ensureDefaultTaxonomies() {
     if (!appState.withdrawals) { appState.withdrawals = []; changed = true; }
     if (!appState.productionRuns) { appState.productionRuns = []; changed = true; }
     if (!appState.subOrderPenalties) { appState.subOrderPenalties = []; changed = true; }
+    if (!appState.customerOrders) { appState.customerOrders = []; changed = true; }
+    if (!appState.customerOrderLines) { appState.customerOrderLines = []; changed = true; }
     if (changed) saveLocal();
 }
 
@@ -695,6 +700,7 @@ const PAGES = [
     { id: 'dashboard', label: 'Tableau de Bord', icon: '🏠', mobilePrimary: true },
     { id: 'catalogue', label: 'Catalogue', icon: '🏷️', mobilePrimary: true },
     { id: 'depots', label: 'Dépôts & Ventes', icon: '📦', mobilePrimary: true },
+    { id: 'commandes', label: 'Commandes', icon: '🧾', mobilePrimary: true },
     { id: 'rapports', label: 'Rapports', icon: '📊', mobilePrimary: true },
     { id: 'matieres', label: 'Matières & BOM', icon: '🧵' },
     { id: 'couturiere', label: 'Sous-traitance', icon: '🪡' },
@@ -860,8 +866,12 @@ function periodLabel(type) {
 }
 
 // ===================== AGRÉGATION VENTES / RAPPORTS =====================
-function computeMetrics(start, end) {
-    const sales = live(appState.sales).filter(s => (!start || s.saleDate >= start) && (!end || s.saleDate <= end));
+function saleChannel(s) { return s.channel || 'depot'; }
+function computeMetrics(start, end, channel) {
+    const sales = live(appState.sales).filter(s =>
+        (!start || s.saleDate >= start) && (!end || s.saleDate <= end) &&
+        (!channel || channel === 'tout' || saleChannel(s) === channel)
+    );
     let caBrut = 0, caNet = 0, cout = 0, benefice = 0, creances = 0;
     const byCategory = {}, byLocation = {};
     sales.forEach(s => {
@@ -912,6 +922,7 @@ function renderPage(id) {
     const main = document.getElementById('main-content');
     const renderers = {
         dashboard: renderDashboardPage, catalogue: renderCataloguePage, depots: renderDepotsPage,
+        commandes: renderCommandesPage,
         rapports: renderRapportsPage, matieres: renderMatieresPage, couturiere: renderCouturierePage,
         courses: renderCoursesPage, marketing: renderMarketingPage, rd: renderRDPage,
         parametres: renderParametresPage, aide: renderAidePage
@@ -1807,10 +1818,264 @@ function generateBordereau() {
             <span>Signature ${currentWorkspaceName()} : ____________</span><span>Signature Boutique : ____________</span>
         </div>`);
 }
+// ===================== 3bis. COMMANDES (vente en gros à des boutiques) =====================
+function renderCommandesPage() {
+    return `
+    <div class="flex between center" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div><h2 class="serif" style="font-size:18px;">Commandes</h2>
+        <p class="muted" style="font-size:11px;">Vente en gros directe à des boutiques — le stock sort à la livraison (différent d'un dépôt-vente)</p></div>
+        <button class="btn btn-dark btn-sm" onclick="openCustomerOrderModal()">+ Nouvelle Commande</button>
+    </div>
+    <div class="card" style="overflow-x:auto;">
+        <table><thead><tr><th>Réf.</th><th>Client / Boutique</th><th>Date commande</th><th>Livraison prévue</th><th>Total</th><th>Statut</th><th>Paiement</th><th></th></tr></thead>
+        <tbody id="cmd-tbody"></tbody></table>
+    </div>`;
+}
+function after_commandes() { renderCommandesTable(); }
+const CMD_STATUS_BADGE = { 'En préparation': 'badge-sand', 'Prête': 'badge-sand', 'Livrée': 'badge-sage', 'Annulée': 'badge-clay' };
+function computeOrderTotal(orderId) {
+    return live(appState.customerOrderLines).filter(l => l.orderId === orderId).reduce((a, l) => a + l.qty * l.unitPriceWholesale, 0);
+}
+function renderCommandesTable() {
+    const tbody = document.getElementById('cmd-tbody');
+    if (!tbody) return;
+    const orders = live(appState.customerOrders).sort((a, b) => (b.orderDate || '').localeCompare(a.orderDate || ''));
+    tbody.innerHTML = orders.map(o => {
+        const total = computeOrderTotal(o.id);
+        const balance = total - (o.amountPaid || 0);
+        return `<tr>
+            <td class="mono">${o.ref}</td>
+            <td>${o.customerName}</td>
+            <td class="muted">${o.orderDate}</td>
+            <td class="muted">${o.deliveryDate || '—'}</td>
+            <td class="mono">${fmt(total)}</td>
+            <td><span class="badge ${CMD_STATUS_BADGE[o.status]||'badge-sand'}">${o.status}</span></td>
+            <td>
+                <span class="badge ${o.paymentStatus==='Payée'?'badge-sage':'badge-clay'}">${o.paymentStatus}</span>
+                ${balance > 0 ? `<div style="font-size:9px;color:var(--clay);">Solde ${fmt(balance)}</div>` : ''}
+            </td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-outline btn-sm" onclick="openOrderDetailModal('${o.id}')">Détail</button>
+            </td>
+        </tr>`;
+    }).join('') || '<tr><td colspan="8" class="muted" style="text-align:center;padding:20px;">Aucune commande enregistrée.</td></tr>';
+}
+
+// ---- Création d'une commande ----
+function openCustomerOrderModal() {
+    openModal(`<h3 class="serif" style="font-size:16px;">Nouvelle Commande</h3>
+        <form onsubmit="submitCustomerOrder(event)" style="margin-top:10px;">
+            <label class="lbl">Client / Boutique</label>
+            <input class="input" id="cof-customer" list="cof-customer-list" placeholder="Nom du client ou de la boutique" required style="margin-bottom:6px;">
+            <datalist id="cof-customer-list">${live(appState.locations).map(l => `<option value="${l.name}">`).join('')}</datalist>
+            <p class="muted" style="font-size:10px;margin-bottom:10px;">Tape un nom existant (une de tes boutiques) ou un nouveau nom de client.</p>
+            <label class="lbl">Date de la commande</label><input class="input" id="cof-order-date" type="date" value="${todayISO()}" style="margin-bottom:10px;">
+            <label class="lbl">Date de livraison prévue</label><input class="input" id="cof-delivery-date" type="date" style="margin-bottom:10px;">
+            <label class="lbl">Emplacement source du stock</label>
+            <select class="input" id="cof-source-loc" style="margin-bottom:10px;">${live(appState.locations).map(l => `<option value="${l.id}" ${l.type==='atelier_central'?'selected':''}>${l.name}</option>`).join('')}</select>
+            <label class="lbl" style="margin-top:6px;">Articles commandés</label>
+            <div id="cof-lines"></div>
+            <button type="button" class="btn btn-outline btn-sm" onclick="addOrderLineRowCmd()" style="margin:6px 0 10px;">+ Ajouter un article</button>
+            <div id="cof-total-preview" class="muted" style="font-size:12px;font-weight:600;padding:8px;background:var(--cream);border-radius:8px;margin-bottom:14px;">Total : 0 FCFA</div>
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Créer la Commande</button></div>
+        </form>`);
+    addOrderLineRowCmd();
+}
+function addOrderLineRowCmd() {
+    const div = document.getElementById('cof-lines');
+    const row = document.createElement('div');
+    row.className = 'flex gap-2';
+    row.style.marginBottom = '6px';
+    row.innerHTML = `<select class="input cof-line-product" onchange="refreshCmdTotalPreview()">${live(appState.products).map(p => `<option value="${p.id}" data-price="${p.pricePublic}">${p.name}</option>`).join('')}</select>
+        <input class="input cof-line-qty" type="number" value="1" min="1" style="max-width:70px;" oninput="refreshCmdTotalPreview()">
+        <input class="input cof-line-price" type="number" placeholder="Prix gros" style="max-width:110px;" oninput="refreshCmdTotalPreview()">
+        <button type="button" class="btn btn-danger btn-sm" onclick="this.parentElement.remove();refreshCmdTotalPreview();">✕</button>`;
+    div.appendChild(row);
+    refreshCmdTotalPreview();
+}
+function refreshCmdTotalPreview() {
+    const el = document.getElementById('cof-total-preview');
+    if (!el) return;
+    let total = 0;
+    document.querySelectorAll('#cof-lines > div').forEach(row => {
+        const qty = parseInt(row.querySelector('.cof-line-qty').value) || 0;
+        const price = parseInt(row.querySelector('.cof-line-price').value) || 0;
+        total += qty * price;
+    });
+    el.textContent = `Total : ${fmt(total)}`;
+}
+function submitCustomerOrder(e) {
+    e.preventDefault();
+    const customerName = document.getElementById('cof-customer').value;
+    const orderDate = document.getElementById('cof-order-date').value;
+    const deliveryDate = document.getElementById('cof-delivery-date').value;
+    const sourceLocationId = document.getElementById('cof-source-loc').value;
+    const matchedLoc = live(appState.locations).find(l => l.name === customerName);
+    const order = newRecord({
+        ref: `CMD-${String(live(appState.customerOrders).length + 1).padStart(3, '0')}`,
+        customerName, locationId: matchedLoc ? matchedLoc.id : null, sourceLocationId,
+        orderDate, deliveryDate, status: 'En préparation', paymentStatus: 'À crédit', amountPaid: 0, notes: ''
+    });
+    appState.customerOrders.push(order);
+    document.querySelectorAll('#cof-lines > div').forEach(row => {
+        const productId = row.querySelector('.cof-line-product').value;
+        const qty = parseInt(row.querySelector('.cof-line-qty').value) || 1;
+        const priceInput = row.querySelector('.cof-line-price').value;
+        const p = getProduct(productId);
+        const unitPriceWholesale = parseInt(priceInput) || (p ? p.pricePublic : 0);
+        appState.customerOrderLines.push(newRecord({ orderId: order.id, productId, qty, unitPriceWholesale }));
+    });
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ---- Détail commande, statuts, livraison, règlement ----
+function openOrderDetailModal(orderId) {
+    const o = appState.customerOrders.find(x => x.id === orderId);
+    const lines = live(appState.customerOrderLines).filter(l => l.orderId === orderId);
+    const total = computeOrderTotal(orderId);
+    const balance = total - (o.amountPaid || 0);
+    const sourceLoc = getLocation(o.sourceLocationId);
+    openModal(`
+        <h3 class="serif" style="font-size:16px;">Commande ${o.ref} — ${o.customerName}</h3>
+        <p class="muted" style="font-size:11px;margin:4px 0 10px;">Commandée le ${o.orderDate}${o.deliveryDate ? ' · livraison prévue ' + o.deliveryDate : ''} · Source : ${sourceLoc ? sourceLoc.name : ''}</p>
+        <table style="width:100%;font-size:12px;margin-bottom:10px;">
+            <thead><tr><th>Article</th><th>Qté</th><th>Prix gros</th><th>Total</th></tr></thead>
+            <tbody>${lines.map(l => { const p = getProduct(l.productId); return `<tr><td>${p?p.name:'?'}</td><td>${l.qty}</td><td>${fmt(l.unitPriceWholesale)}</td><td>${fmt(l.qty*l.unitPriceWholesale)}</td></tr>`; }).join('')}</tbody>
+        </table>
+        <div class="flex between" style="font-size:13px;font-weight:600;padding:8px;background:var(--cream);border-radius:8px;margin-bottom:10px;">
+            <span>Total commande</span><span>${fmt(total)}</span>
+        </div>
+        <div class="flex between" style="font-size:12px;margin-bottom:14px;">
+            <span>Statut : <span class="badge ${CMD_STATUS_BADGE[o.status]||'badge-sand'}">${o.status}</span></span>
+            <span>Paiement : <span class="badge ${o.paymentStatus==='Payée'?'badge-sage':'badge-clay'}">${o.paymentStatus}</span>${balance>0?` (solde ${fmt(balance)})`:''}</span>
+        </div>
+        <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:10px;">
+            ${o.status==='En préparation' ? `<button class="btn btn-outline btn-sm" onclick="setOrderStatus('${o.id}','Prête')">Marquer Prête</button>` : ''}
+            ${(o.status==='En préparation'||o.status==='Prête') ? `<button class="btn btn-sage btn-sm" onclick="openDeliverOrderModal('${o.id}')">📦 Livrer</button>` : ''}
+            ${balance > 0 && o.status==='Livrée' ? `<button class="btn btn-outline btn-sm" onclick="openOrderSettleModal('${o.id}')">Enregistrer un règlement</button>` : ''}
+            ${o.status!=='Annulée' && o.status!=='Livrée' ? `<button class="btn btn-danger btn-sm" onclick="setOrderStatus('${o.id}','Annulée')">Annuler la commande</button>` : ''}
+        </div>
+        <div class="flex gap-2" style="flex-wrap:wrap;">
+            <button class="btn btn-outline btn-sm" onclick="generateOrderPDF('${o.id}','commande')">📄 Bon de Commande</button>
+            ${o.status==='Livrée' ? `<button class="btn btn-outline btn-sm" onclick="generateOrderPDF('${o.id}','livraison')">📄 Bon de Livraison</button>` : ''}
+        </div>
+        <div class="flex between" style="margin-top:16px;"><button class="btn btn-outline" onclick="closeModal()">Fermer</button></div>`);
+}
+function setOrderStatus(orderId, status) {
+    const o = appState.customerOrders.find(x => x.id === orderId);
+    if (!o) return;
+    o.status = status; touch(o);
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ---- Livraison : sort le stock, crée les ventes (canal "commande") ----
+function openDeliverOrderModal(orderId) {
+    openModal(`<h3 class="serif" style="font-size:16px;">Confirmer la Livraison</h3>
+        <p class="muted" style="font-size:11px;margin-bottom:10px;">Le stock sortira définitivement de l'emplacement source choisi à la commande.</p>
+        <form onsubmit="submitDeliverOrder(event,'${orderId}')">
+            <label class="lbl">Date de livraison</label><input class="input" id="dlv-date" type="date" value="${todayISO()}" style="margin-bottom:10px;">
+            <label class="lbl">Statut de paiement</label>
+            <select class="input" id="dlv-payment" onchange="toggleDlvAmount()" style="margin-bottom:10px;">
+                <option value="Payée">Payée intégralement à la livraison</option>
+                <option value="Partielle">Partiellement payée</option>
+                <option value="À crédit">À crédit (rien payé pour l'instant)</option>
+            </select>
+            <div id="dlv-amount-field">
+                <label class="lbl">Montant payé (FCFA)</label>
+                <input class="input" id="dlv-amount" type="number" value="0" style="margin-bottom:10px;">
+            </div>
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-sage">Confirmer la Livraison</button></div>
+        </form>`);
+}
+function toggleDlvAmount() {
+    const val = document.getElementById('dlv-payment').value;
+    document.getElementById('dlv-amount-field').style.display = val === 'À crédit' ? 'none' : 'block';
+}
+function submitDeliverOrder(e, orderId) {
+    e.preventDefault();
+    const o = appState.customerOrders.find(x => x.id === orderId);
+    const lines = live(appState.customerOrderLines).filter(l => l.orderId === orderId);
+    const deliveryDate = document.getElementById('dlv-date').value;
+    const paymentStatus = document.getElementById('dlv-payment').value;
+    const total = computeOrderTotal(orderId);
+    let amountPaid = 0;
+    if (paymentStatus === 'Payée') amountPaid = total;
+    else if (paymentStatus === 'Partielle') amountPaid = parseInt(document.getElementById('dlv-amount').value) || 0;
+
+    const insufficient = [];
+    lines.forEach(l => {
+        const p = getProduct(l.productId);
+        let se = live(appState.stockEntries).find(s => s.productId === l.productId && s.locationId === o.sourceLocationId);
+        if (!se) {
+            se = newRecord({ productId: l.productId, locationId: o.sourceLocationId, qtyDeposited: 0, qtySold: 0, qtyReturned: 0, qtyPaid: 0, depositDate: deliveryDate, source: 'production_interne', notes: '' });
+            appState.stockEntries.push(se);
+        }
+        const available = stockEntryStock(se);
+        if (available < l.qty) insufficient.push(`${p ? p.name : '?'} (${available} dispo, ${l.qty} demandé)`);
+        se.qtySold = (se.qtySold || 0) + l.qty; touch(se);
+        const isPaidLine = paymentStatus === 'Payée';
+        appState.sales.push(newRecord({
+            stockEntryId: se.id, productId: l.productId, locationId: o.sourceLocationId, qty: l.qty, unitPrice: l.unitPriceWholesale,
+            commissionPct: 0, saleDate: deliveryDate, isPaid: isPaidLine, paidDate: isPaidLine ? deliveryDate : null,
+            channel: 'commande', orderId: o.id
+        }));
+    });
+    o.status = 'Livrée'; o.deliveryDate = deliveryDate; o.paymentStatus = paymentStatus; o.amountPaid = amountPaid;
+    touch(o);
+    saveLocal(); closeModal(); renderAll();
+    if (insufficient.length) alert("⚠️ Livraison enregistrée, mais le stock était insuffisant pour :\n" + insufficient.join('\n') + "\nLe stock est passé en négatif virtuel — pense à ajuster.");
+}
+function openOrderSettleModal(orderId) {
+    const o = appState.customerOrders.find(x => x.id === orderId);
+    const total = computeOrderTotal(orderId);
+    const balance = total - (o.amountPaid || 0);
+    openModal(`<h3 class="serif" style="font-size:16px;">Enregistrer un Règlement</h3>
+        <p class="muted" style="font-size:11px;margin-bottom:10px;">Solde actuel : ${fmt(balance)}</p>
+        <form onsubmit="submitOrderSettle(event,'${orderId}')">
+            <label class="lbl">Montant réglé maintenant (FCFA)</label><input class="input" id="ost-amount" type="number" value="${balance}" max="${balance}" required style="margin-bottom:14px;">
+            <div class="flex between"><button type="button" class="btn btn-outline" onclick="closeModal()">Annuler</button><button type="submit" class="btn btn-dark">Valider</button></div>
+        </form>`);
+}
+function submitOrderSettle(e, orderId) {
+    e.preventDefault();
+    const o = appState.customerOrders.find(x => x.id === orderId);
+    const total = computeOrderTotal(orderId);
+    const amount = Math.min(total - (o.amountPaid || 0), parseInt(document.getElementById('ost-amount').value) || 0);
+    o.amountPaid = (o.amountPaid || 0) + amount;
+    o.paymentStatus = o.amountPaid >= total ? 'Payée' : 'Partielle';
+    touch(o);
+    const relatedSales = live(appState.sales).filter(s => s.orderId === orderId && !s.isPaid);
+    if (o.paymentStatus === 'Payée') relatedSales.forEach(s => { s.isPaid = true; s.paidDate = todayISO(); touch(s); });
+    saveLocal(); closeModal(); renderAll();
+}
+
+// ---- PDF : bon de commande / bon de livraison ----
+function generateOrderPDF(orderId, type) {
+    const o = appState.customerOrders.find(x => x.id === orderId);
+    const lines = live(appState.customerOrderLines).filter(l => l.orderId === orderId);
+    const total = computeOrderTotal(orderId);
+    const title = type === 'livraison' ? 'Bon de Livraison' : 'Bon de Commande';
+    const rows = lines.map(l => {
+        const p = getProduct(l.productId);
+        return `<tr><td>${type==='livraison' ? `<img src="${productImage(p)}" style="width:36px;height:36px;object-fit:cover;border-radius:4px;">` : ''}</td>
+        <td>${p ? p.ref : ''}</td><td>${p ? p.name : ''}</td><td style="text-align:center;">${l.qty}</td>
+        <td style="text-align:right;">${fmt(l.unitPriceWholesale)}</td><td style="text-align:right;">${fmt(l.qty*l.unitPriceWholesale)}</td></tr>`;
+    }).join('');
+    printHTML(`
+        <div style="text-align:center;"><h2>${currentWorkspaceName()}</h2><p>${title} — ${o.ref}</p>
+        <p style="font-size:11px;">Client : ${o.customerName} — ${type==='livraison' ? 'Livré le ' + o.deliveryDate : 'Commandé le ' + o.orderDate}</p></div>
+        <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:14px;">
+        <tr style="background:#F4F0EA;">${type==='livraison'?'<th>Photo</th>':'<th></th>'}<th>Réf</th><th>Article</th><th>Qté</th><th>Prix Gros</th><th>Total</th></tr>${rows}</table>
+        <p style="text-align:right;font-weight:bold;margin-top:10px;">Total : ${fmt(total)}</p>
+        <div style="display:flex;justify-content:space-between;margin-top:60px;font-size:12px;">
+            <span>Signature ${currentWorkspaceName()} : ____________</span><span>Signature Client : ____________</span>
+        </div>`);
+}
 // ===================== 4. RAPPORTS =====================
 // ===================== 4. RAPPORTS =====================
 let rapportPeriodType = 'month';
 let rapportCompareMode = 'previous'; // 'previous' | 'lastyear' | 'none'
+let rapportChannel = 'tout'; // 'tout' | 'depot' | 'commande'
 
 function renderRapportsPage() {
     return `
@@ -1829,6 +2094,12 @@ function renderRapportsPage() {
             <input type="date" id="rp-custom-start" class="input" onchange="renderRapportsBody()">
             <input type="date" id="rp-custom-end" class="input" onchange="renderRapportsBody()">
         </div>
+        <div class="flex gap-2" style="align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+            <span class="lbl" style="margin:0;">Canal de vente :</span>
+            <button class="btn btn-sm ${rapportChannel==='tout'?'btn-dark':'btn-outline'}" onclick="setRapportChannel('tout')">Tout confondu</button>
+            <button class="btn btn-sm ${rapportChannel==='depot'?'btn-dark':'btn-outline'}" onclick="setRapportChannel('depot')">Dépôts-Ventes</button>
+            <button class="btn btn-sm ${rapportChannel==='commande'?'btn-dark':'btn-outline'}" onclick="setRapportChannel('commande')">Commandes</button>
+        </div>
         <div class="flex gap-2" style="align-items:center;flex-wrap:wrap;">
             <span class="lbl" style="margin:0;">Comparer à :</span>
             <button class="btn btn-sm ${rapportCompareMode==='previous'?'btn-dark':'btn-outline'}" onclick="setCompareMode('previous')">Période précédente</button>
@@ -1846,6 +2117,7 @@ function renderRapportsPage() {
 }
 function setRapportPeriod(t) { rapportPeriodType = t; renderPage('rapports'); }
 function setCompareMode(m) { rapportCompareMode = m; renderPage('rapports'); }
+function setRapportChannel(c) { rapportChannel = c; renderPage('rapports'); }
 function after_rapports() { renderRapportsBody(); }
 
 function pctChange(cur, prev) {
@@ -1863,19 +2135,19 @@ function renderRapportsBody() {
     const body = document.getElementById('rp-body');
     if (!body) return;
     let { start, end } = periodRange(rapportPeriodType, document.getElementById('rp-custom-start')?.value, document.getElementById('rp-custom-end')?.value);
-    const m = computeMetrics(start, end);
+    const m = computeMetrics(start, end, rapportChannel);
 
     let compare = null, compareRangeLabel = '';
     if (rapportCompareMode === 'previous' && start && end) {
         const prev = previousEquivalentPeriod(start, end);
-        compare = computeMetrics(prev.start, prev.end); compareRangeLabel = `${prev.start} → ${prev.end}`;
+        compare = computeMetrics(prev.start, prev.end, rapportChannel); compareRangeLabel = `${prev.start} → ${prev.end}`;
     } else if (rapportCompareMode === 'lastyear' && start && end) {
         const ly = samePeriodLastYear(start, end);
-        compare = computeMetrics(ly.start, ly.end); compareRangeLabel = `${ly.start} → ${ly.end}`;
+        compare = computeMetrics(ly.start, ly.end, rapportChannel); compareRangeLabel = `${ly.start} → ${ly.end}`;
     } else if (rapportCompareMode === 'custom') {
         const cs = document.getElementById('rp-compare-start')?.value;
         const ce = document.getElementById('rp-compare-end')?.value;
-        if (cs && ce) { compare = computeMetrics(cs, ce); compareRangeLabel = `${cs} → ${ce}`; }
+        if (cs && ce) { compare = computeMetrics(cs, ce, rapportChannel); compareRangeLabel = `${cs} → ${ce}`; }
     }
     const stockByLoc = currentStockByLocation();
     const compareSuffix = comparisonSuffixLabel();
@@ -1910,9 +2182,9 @@ function renderRapportsBody() {
     </div>
 
     <div class="card" style="overflow-x:auto;margin-bottom:10px;">
-        <div class="p3" style="padding-bottom:0;"><h4 class="serif" style="font-size:13px;">Liste des Prix & Marges${start ? ' — ventes de la période sélectionnée' : ''}</h4></div>
+        <div class="p3" style="padding-bottom:0;"><h4 class="serif" style="font-size:13px;">Liste des Prix & Marges${start ? ' — ventes de la période sélectionnée' : ''}${rapportChannel!=='tout' ? ' — canal : ' + (rapportChannel==='depot'?'Dépôts-Ventes':'Commandes') : ''}</h4></div>
         <table><thead><tr><th>Photo</th><th>Réf.</th><th>Article</th><th>Catégorie</th><th>Coût Revient</th><th>Prix Public</th><th>Prix Net</th><th>Marge Unit.</th><th>Marge %</th><th>Vendus</th><th>Bénéfice Total</th></tr></thead>
-        <tbody>${priceListRows(start, end)}</tbody></table>
+        <tbody>${priceListRows(start, end, rapportChannel)}</tbody></table>
     </div>`;
 }
 function breakdownRows(current, previous) {
@@ -1934,8 +2206,9 @@ function kpiCardFull(label, value, compareValue, compareSuffix, isProfit) {
         ${compareValue !== undefined && compareValue !== null ? `<p style="font-size:10px;color:var(--warmgray);">${fmt(compareValue)} ${compareSuffix} (${pctChange(value, compareValue)})</p>` : ''}
     </div>`;
 }
-function priceListRows(start, end) {
-    const sales = start ? live(appState.sales).filter(s => s.saleDate >= start && s.saleDate <= end) : live(appState.sales);
+function priceListRows(start, end, channel) {
+    let sales = start ? live(appState.sales).filter(s => s.saleDate >= start && s.saleDate <= end) : live(appState.sales);
+    if (channel && channel !== 'tout') sales = sales.filter(s => saleChannel(s) === channel);
     const soldByProduct = {};
     sales.forEach(s => { soldByProduct[s.productId] = (soldByProduct[s.productId] || 0) + s.qty; });
     return live(appState.products).map(p => {
@@ -3019,6 +3292,19 @@ function renderAidePage() {
 
 // ===================== EXPOSITION DES GESTIONNAIRES (onclick etc.) SUR WINDOW =====================
 window.cancelSale = cancelSale;
+window.setRapportChannel = setRapportChannel;
+window.addOrderLineRowCmd = addOrderLineRowCmd;
+window.generateOrderPDF = generateOrderPDF;
+window.openCustomerOrderModal = openCustomerOrderModal;
+window.openDeliverOrderModal = openDeliverOrderModal;
+window.openOrderDetailModal = openOrderDetailModal;
+window.openOrderSettleModal = openOrderSettleModal;
+window.refreshCmdTotalPreview = refreshCmdTotalPreview;
+window.setOrderStatus = setOrderStatus;
+window.submitCustomerOrder = submitCustomerOrder;
+window.submitDeliverOrder = submitDeliverOrder;
+window.submitOrderSettle = submitOrderSettle;
+window.toggleDlvAmount = toggleDlvAmount;
 window.closeWorkspaceMenu = closeWorkspaceMenu;
 window.createWorkspace = createWorkspace;
 window.deleteWorkspaceConfirm = deleteWorkspaceConfirm;
@@ -3066,6 +3352,7 @@ window.submitNewGamme = submitNewGamme;
 window.toggleArchivedView = toggleArchivedView;
 window.toggleCatalogueActions = toggleCatalogueActions;
 window.after_catalogue = after_catalogue;
+window.after_commandes = after_commandes;
 window.after_courses = after_courses;
 window.after_couturiere = after_couturiere;
 window.after_depots = after_depots;
