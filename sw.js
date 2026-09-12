@@ -1,9 +1,17 @@
-// Dear San'el — Service Worker
+// Boutique — Tour de Contrôle — Service Worker
 // Stratégie : réseau en priorité, repli sur le cache si hors-ligne.
 // Ne met JAMAIS en cache les appels vers Supabase (données dynamiques distantes).
 
-const CACHE_NAME = 'dearsanel-cache-v1';
-const APP_SHELL = ['./', './index.html'];
+const CACHE_NAME = 'boutique-tdc-cache-v2';
+const APP_SHELL = [
+    './',
+    './index.html',
+    './manifest.json',
+    './icons/icon-192.png',
+    './icons/icon-512.png',
+    './icons/icon-512-maskable.png',
+    './icons/apple-touch-icon.png'
+];
 
 self.addEventListener('install', (event) => {
     self.skipWaiting();
