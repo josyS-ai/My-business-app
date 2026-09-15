@@ -3,15 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Boutique — Tour de Contrôle</title>
+<title>EasyCommerce</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1A1A1A">
-<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <!-- Installation sur iPhone (Safari ne lit pas manifest.json pour l'écran d'accueil) -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Boutique TdC">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="EasyCommerce">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{
   --cream:#FDFBF7; --charcoal:#1A1A1A; --sage:#8A9A86; --sand:#E8E2D9;
@@ -110,7 +110,7 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 
 <!-- ÉCRAN PIN -->
 <div class="pin-screen hidden" id="pin-screen">
-  <h2 class="serif" style="font-size:22px;">Boutique — Tour de Contrôle</h2>
+  <h2 class="serif" style="font-size:22px;">EasyCommerce</h2>
   <p class="muted" id="pin-screen-label" style="font-size:12px;margin-top:6px;">Entre ton code PIN</p>
   <div class="pin-dots" id="pin-dots"></div>
   <div class="pin-pad" id="pin-pad"></div>
@@ -119,7 +119,7 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 
 <!-- ÉCRAN D'ACCUEIL / ONBOARDING -->
 <div class="onboard-screen hidden" id="onboard-screen">
-  <h1 class="serif" style="font-size:26px;">Boutique — Tour de Contrôle</h1>
+  <h1 class="serif" style="font-size:26px;">EasyCommerce</h1>
   <p class="muted" style="max-width:340px;font-size:13px;margin:14px 0 22px;">
     Nouvel appareil détecté. Récupère tes données existantes avec ton code de synchronisation,
     ou démarre avec le catalogue de départ (Dear San'el).
@@ -149,7 +149,7 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-brand" style="cursor:pointer;" onclick="openWorkspaceMenu()">
       <div class="flex between center">
-        <h1 class="serif" style="font-size:16px;" id="ws-name-sidebar">Boutique — Tour de Contrôle</h1>
+        <h1 class="serif" style="font-size:16px;" id="ws-name-sidebar">Mon Commerce</h1>
         <span class="muted" style="font-size:11px;">▾</span>
       </div>
       <p class="muted" style="font-size:9px;letter-spacing:.06em;text-transform:uppercase;margin-top:2px;">Atelier · Boutiques · Rentabilité</p>
@@ -162,7 +162,7 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 
   <div class="content-col">
     <header class="mobile-top-header">
-      <h1 class="serif" style="font-size:15px;cursor:pointer;" id="ws-name-mobile" onclick="openWorkspaceMenu()">Boutique — Tour de Contrôle ▾</h1>
+      <h1 class="serif" style="font-size:15px;cursor:pointer;" id="ws-name-mobile" onclick="openWorkspaceMenu()">Mon Commerce ▾</h1>
       <span id="sync-indicator-mobile" style="font-size:10px;" class="muted"><span class="sync-dot sync-idle"></span></span>
     </header>
 
@@ -280,7 +280,7 @@ let workspacesList = [];   // [{id, name, _ts, deleted}]
 let activeWorkspaceId = null;
 
 function getActiveWorkspaceMeta() { return workspacesList.find(w => w.id === activeWorkspaceId); }
-function currentWorkspaceName() { const w = getActiveWorkspaceMeta(); return w ? w.name : 'Boutique — Tour de Contrôle'; }
+function currentWorkspaceName() { const w = getActiveWorkspaceMeta(); return w ? w.name : 'Mon Commerce'; }
 function liveWorkspaces() { return workspacesList.filter(w => !w.deleted); }
 
 function loadWorkspacesList() {
@@ -310,7 +310,7 @@ function loadLocal() {
         let legacy = null;
         try { const raw = localStorage.getItem(LS_KEY); if (raw) legacy = JSON.parse(raw); } catch (e) { console.error(e); }
         const wsId = uuid();
-        workspacesList = [{ id: wsId, name: 'Boutique — Tour de Contrôle', _ts: nowTs(), deleted: false }];
+        workspacesList = [{ id: wsId, name: "Dear San'el", _ts: nowTs(), deleted: false }];
         activeWorkspaceId = wsId;
         if (legacy) saveWorkspaceData(wsId, Object.assign(emptyState(), legacy));
         saveWorkspacesList();
@@ -424,11 +424,15 @@ function mergeCollection(localArr, remoteArr) {
     });
     return Array.from(map.values());
 }
+function emptyBusinessInfo() { return { name: '', address: '', phone: '', email: '', taxId: '', _ts: 0 }; }
 function mergeStates(localState, remoteState) {
     const merged = emptyState();
     COLLECTION_KEYS.forEach(key => {
         merged[key] = mergeCollection(localState[key], remoteState && remoteState[key]);
     });
+    const localBI = (localState && localState.businessInfo) || emptyBusinessInfo();
+    const remoteBI = (remoteState && remoteState.businessInfo) || emptyBusinessInfo();
+    merged.businessInfo = (remoteBI._ts || 0) > (localBI._ts || 0) ? remoteBI : localBI;
     return merged;
 }
 
@@ -611,6 +615,7 @@ function shouldShowOnboarding() {
 function onboardStartFresh() {
     appState = freshState();
     saveLocal();
+    ensureDefaultTaxonomies();
     document.getElementById('onboard-screen').classList.add('hidden');
     startApp();
 }
@@ -641,6 +646,7 @@ async function onboardRecoverFromSync() {
 // appareils qui avaient déjà des données locales enregistrées avant leur introduction.
 function ensureDefaultTaxonomies() {
     let changed = false;
+    if (!appState.businessInfo) { appState.businessInfo = emptyBusinessInfo(); changed = true; }
     if (!appState.gammes || appState.gammes.length === 0) {
         const g1 = newRecord({ name: 'Créations Maison (Crochet & Couture Interne)' });
         const g2 = newRecord({ name: 'Confection Sous-traitée (Couturière Externe)' });
@@ -1356,7 +1362,13 @@ function exportCataloguePDF() {
         const cat = getCategory(p.categoryId);
         return `<tr><td><img src="${productImage(p)}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td>${cat ? cat.name : ''}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td><td>${p.createdAt||''}</td></tr>`;
     }).join('');
-    printHTML(`<h2>${currentWorkspaceName()} — Catalogue des Créations</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Nom</th><th>Catégorie</th><th>Prix Public</th><th>Ajouté le</th></tr>${rows}</table>`);
+    printHTML(`${documentHeaderHTML()}</div><p style="text-align:center;">Catalogue des Créations</p><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Nom</th><th>Catégorie</th><th>Prix Public</th><th>Ajouté le</th></tr>${rows}</table>`);
+}
+function documentHeaderHTML() {
+    const bi = appState.businessInfo || emptyBusinessInfo();
+    const displayName = bi.name || currentWorkspaceName();
+    const details = [bi.address, bi.phone, bi.email, bi.taxId ? 'RCCM/NIU : ' + bi.taxId : ''].filter(Boolean);
+    return `<div style="text-align:center;"><h2 style="margin-bottom:2px;">${displayName}</h2>${details.length ? `<p style="font-size:10px;color:#666;margin:2px 0;">${details.join(' · ')}</p>` : ''}`;
 }
 function printHTML(innerHTML) {
     const w = window.open('', '_blank');
@@ -1813,7 +1825,7 @@ function generateBordereau() {
     }).join('');
 
     printHTML(`
-        <div style="text-align:center;"><h2>${currentWorkspaceName()}</h2><p>Bordereau de Dépôt — ${loc.name}</p>
+        ${documentHeaderHTML()}<p>Bordereau de Dépôt — ${loc.name}</p>
         <p style="font-size:11px;">${mode === 'jour' ? 'Dépôts du ' + filterDate : 'Récapitulatif complet du stock en dépôt'} — édité le ${new Date().toLocaleDateString('fr-FR')}</p></div>
         <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:14px;">
         <tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Article</th><th>Qté</th><th>Prix Public</th><th>Total</th></tr>${rows}</table>
@@ -2069,7 +2081,7 @@ function generateOrderPDF(orderId, type) {
         <td style="text-align:right;">${fmt(l.unitPriceWholesale)}</td><td style="text-align:right;">${fmt(l.qty*l.unitPriceWholesale)}</td></tr>`;
     }).join('');
     printHTML(`
-        <div style="text-align:center;"><h2>${currentWorkspaceName()}</h2><p>${title} — ${o.ref}</p>
+        ${documentHeaderHTML()}<p>${title} — ${o.ref}</p>
         <p style="font-size:11px;">Client : ${o.customerName} — ${type==='livraison' ? 'Livré le ' + o.deliveryDate : 'Commandé le ' + o.orderDate}</p></div>
         <table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;margin-top:14px;">
         <tr style="background:#F4F0EA;">${type==='livraison'?'<th>Photo</th>':'<th></th>'}<th>Réf</th><th>Article</th><th>Qté</th><th>Prix Gros</th><th>Total</th></tr>${rows}</table>
@@ -2243,7 +2255,7 @@ function priceListRows(start, end, channel) {
 }
 function exportRapportPDF() {
     const body = document.getElementById('rp-body').innerHTML;
-    printHTML(`<h2>${currentWorkspaceName()} — Rapport (${periodLabel(rapportPeriodType)})</h2>${body}`);
+    printHTML(`${documentHeaderHTML()}</div><p style="text-align:center;">Rapport (${periodLabel(rapportPeriodType)})</p>${body}`);
 }
 function exportPriceListPDF() {
     const rows = live(appState.products).map(p => {
@@ -2252,7 +2264,7 @@ function exportPriceListPDF() {
         const net = p.desiredNetPrice || p.pricePublic;
         return `<tr><td><img src="${productImage(p)}" style="width:34px;height:34px;object-fit:cover;border-radius:4px;"></td><td>${p.ref}</td><td>${p.name}</td><td>${cat?cat.name:''}</td><td style="text-align:right;">${cost?fmt(cost):'Non renseigné'}</td><td style="text-align:right;">${fmt(p.pricePublic)}</td><td style="text-align:right;">${fmt(net)}</td></tr>`;
     }).join('');
-    printHTML(`<h2>${currentWorkspaceName()} — Liste des Prix</h2><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Article</th><th>Catégorie</th><th>Coût Revient</th><th>Prix Public</th><th>Prix Net</th></tr>${rows}</table>`);
+    printHTML(`${documentHeaderHTML()}</div><p style="text-align:center;">Liste des Prix</p><table border="1" cellspacing="0" cellpadding="6" style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#F4F0EA;"><th>Photo</th><th>Réf</th><th>Article</th><th>Catégorie</th><th>Coût Revient</th><th>Prix Public</th><th>Prix Net</th></tr>${rows}</table>`);
 }
 // ===================== 5. MATIÈRES PREMIÈRES (BOM) =====================
 function renderMatieresPage() {
@@ -3166,6 +3178,24 @@ function renderParametresPage() {
     </div>
 
     <div class="card p4" style="margin-bottom:12px;">
+        <h4 class="serif" style="font-size:14px;">📇 Informations du commerce actif — ${currentWorkspaceName()}</h4>
+        <p class="muted" style="font-size:11px;margin:6px 0 10px;">Ces infos apparaîtront sur les bordereaux, bons de commande, bons de livraison et rapports PDF de <strong>${currentWorkspaceName()}</strong> uniquement.</p>
+        ${(() => { const bi = appState.businessInfo || emptyBusinessInfo(); return `
+        <label class="lbl">Nom à afficher sur les documents</label>
+        <input class="input" id="bi-name" value="${bi.name || ''}" placeholder="${currentWorkspaceName()}" style="margin-bottom:8px;">
+        <label class="lbl">Adresse</label>
+        <input class="input" id="bi-address" value="${bi.address || ''}" style="margin-bottom:8px;">
+        <div class="grid g2" style="margin-bottom:8px;">
+            <div><label class="lbl">Téléphone</label><input class="input" id="bi-phone" value="${bi.phone || ''}"></div>
+            <div><label class="lbl">Email</label><input class="input" id="bi-email" value="${bi.email || ''}"></div>
+        </div>
+        <label class="lbl">RCCM / Identifiant fiscal (optionnel)</label>
+        <input class="input" id="bi-taxid" value="${bi.taxId || ''}" style="margin-bottom:10px;">
+        <button class="btn btn-dark btn-sm" onclick="saveBusinessInfo()">Enregistrer</button>
+        `; })()}
+    </div>
+
+    <div class="card p4" style="margin-bottom:12px;">
         <h4 class="serif" style="font-size:14px;">🔄 Synchronisation entre appareils</h4>
         <p class="muted" style="font-size:11px;margin:6px 0 10px;">Un seul code couvre TOUS tes commerces — choisis-le identique sur tous tes appareils pour tout fusionner automatiquement.</p>
         <label class="lbl">Code de synchronisation</label>
@@ -3214,6 +3244,18 @@ function renderParametresPage() {
         <p class="muted" style="font-size:11px;margin:6px 0 10px;">Efface définitivement toutes les données de cet appareil. Irréversible.</p>
         <button class="btn btn-danger btn-sm" onclick="resetAllData()">Réinitialiser</button>
     </div>`;
+}
+function saveBusinessInfo() {
+    appState.businessInfo = {
+        name: document.getElementById('bi-name').value,
+        address: document.getElementById('bi-address').value,
+        phone: document.getElementById('bi-phone').value,
+        email: document.getElementById('bi-email').value,
+        taxId: document.getElementById('bi-taxid').value,
+        _ts: nowTs()
+    };
+    saveLocal();
+    alert("Informations enregistrées pour " + currentWorkspaceName() + ".");
 }
 function saveSyncCode() {
     const code = document.getElementById('set-sync-code').value.trim().toUpperCase();
@@ -3299,6 +3341,7 @@ function renderAidePage() {
 
 // ===================== EXPOSITION DES GESTIONNAIRES (onclick etc.) SUR WINDOW =====================
 window.cancelSale = cancelSale;
+window.saveBusinessInfo = saveBusinessInfo;
 window.setRapportChannel = setRapportChannel;
 window.addOrderLineRowCmd = addOrderLineRowCmd;
 window.generateOrderPDF = generateOrderPDF;
