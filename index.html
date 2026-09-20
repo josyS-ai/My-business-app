@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>EasyCommerce</title>
+<title>PilotStore</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1A1A1A">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <!-- Installation sur iPhone (Safari ne lit pas manifest.json pour l'écran d'accueil) -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="EasyCommerce">
+<meta name="apple-mobile-web-app-title" content="PilotStore">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 :root{
@@ -110,7 +110,7 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 
 <!-- ÉCRAN PIN -->
 <div class="pin-screen hidden" id="pin-screen">
-  <h2 class="serif" style="font-size:22px;">EasyCommerce</h2>
+  <h2 class="serif" style="font-size:22px;">PilotStore</h2>
   <p class="muted" id="pin-screen-label" style="font-size:12px;margin-top:6px;">Entre ton code PIN</p>
   <div class="pin-dots" id="pin-dots"></div>
   <div class="pin-pad" id="pin-pad"></div>
@@ -119,7 +119,7 @@ main{max-width:1100px;margin:0 auto;padding:16px;}
 
 <!-- ÉCRAN D'ACCUEIL / ONBOARDING -->
 <div class="onboard-screen hidden" id="onboard-screen">
-  <h1 class="serif" style="font-size:26px;">EasyCommerce</h1>
+  <h1 class="serif" style="font-size:26px;">PilotStore</h1>
   <p class="muted" style="max-width:340px;font-size:13px;margin:14px 0 22px;">
     Nouvel appareil détecté. Récupère tes données existantes avec ton code de synchronisation,
     ou démarre avec le catalogue de départ (Dear San'el).
@@ -1270,8 +1270,15 @@ function openProductModal(id) {
             <label class="lbl">Catégorie</label>
             <select class="input" id="pf-cat" onchange="handleNewCategoryInline('pf-cat')" style="margin-bottom:10px;">${categoryOptionsHTML(p ? p.categoryId : null)}</select>
             <label class="lbl">Photo (fichier ou URL)</label>
-            <input type="file" id="pf-img-file" accept="image/*" class="input" style="margin-bottom:6px;">
-            <input type="url" id="pf-img-url" class="input" value="${p ? (p.image || '') : ''}" placeholder="https://..." style="margin-bottom:10px;">
+            <div id="pf-img-preview-block" style="${p && p.image ? '' : 'display:none;'}margin-bottom:8px;">
+                <div class="flex gap-2 center">
+                    <img id="pf-img-preview" src="${p && p.image ? p.image : ''}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--sand);">
+                    <button type="button" class="btn btn-danger btn-sm" onclick="clearProductImage()">🗑️ Retirer la photo</button>
+                </div>
+            </div>
+            <input type="file" id="pf-img-file" accept="image/*" class="input" onchange="previewProductImageFile()" style="margin-bottom:6px;">
+            <input type="url" id="pf-img-url" class="input" value="${p && p.image && p.image.indexOf('http') === 0 ? p.image : ''}" placeholder="https://..." style="margin-bottom:10px;">
+            <input type="hidden" id="pf-img-cleared" value="0">
             <label class="lbl">Prix Public (FCFA)</label>
             <input class="input" id="pf-price" type="number" value="${p ? p.pricePublic : ''}" required style="margin-bottom:10px;">
             <label class="lbl">Prix net souhaité après commission (FCFA) — optionnel</label>
@@ -1298,6 +1305,24 @@ function openProductModal(id) {
             </div>
         </form>`);
 }
+function clearProductImage() {
+    document.getElementById('pf-img-cleared').value = '1';
+    document.getElementById('pf-img-url').value = '';
+    document.getElementById('pf-img-file').value = '';
+    document.getElementById('pf-img-preview-block').style.display = 'none';
+}
+function previewProductImageFile() {
+    const fileInput = document.getElementById('pf-img-file');
+    if (fileInput.files && fileInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = ev => {
+            document.getElementById('pf-img-preview').src = ev.target.result;
+            document.getElementById('pf-img-preview-block').style.display = 'block';
+            document.getElementById('pf-img-cleared').value = '0';
+        };
+        reader.readAsDataURL(fileInput.files[0]);
+    }
+}
 function submitProduct(e, id) {
     e.preventDefault();
     const name = document.getElementById('pf-name').value;
@@ -1307,6 +1332,7 @@ function submitProduct(e, id) {
     const createdAt = document.getElementById('pf-created').value || todayISO();
     const notes = document.getElementById('pf-notes').value;
     const urlImg = document.getElementById('pf-img-url').value;
+    const imageCleared = document.getElementById('pf-img-cleared')?.value === '1';
     const costItems = readCostItemsFromForm();
     const fileInput = document.getElementById('pf-img-file');
 
@@ -1314,7 +1340,9 @@ function submitProduct(e, id) {
         if (id) {
             const p = getProduct(id);
             p.name = name; p.categoryId = categoryId; p.pricePublic = pricePublic; p.desiredNetPrice = desiredNetPrice; p.createdAt = createdAt; p.notes = notes;
-            if (base64) p.image = base64; else if (urlImg) p.image = urlImg;
+            if (base64) p.image = base64;
+            else if (urlImg) p.image = urlImg;
+            else if (imageCleared) p.image = '';
             p.costItems = costItems;
             touch(p);
         } else {
@@ -3341,6 +3369,8 @@ function renderAidePage() {
 
 // ===================== EXPOSITION DES GESTIONNAIRES (onclick etc.) SUR WINDOW =====================
 window.cancelSale = cancelSale;
+window.clearProductImage = clearProductImage;
+window.previewProductImageFile = previewProductImageFile;
 window.saveBusinessInfo = saveBusinessInfo;
 window.setRapportChannel = setRapportChannel;
 window.addOrderLineRowCmd = addOrderLineRowCmd;
