@@ -1,6 +1,6 @@
 {
-  "name": "EasyCommerce",
-  "short_name": "EasyCommerce",
+  "name": "PilotStore",
+  "short_name": "PilotStore",
   "description": "Gestion multi-commerces : catalogue, dépôts, commandes et rentabilité",
   "start_url": "./index.html",
   "scope": "./",

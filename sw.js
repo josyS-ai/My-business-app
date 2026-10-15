@@ -2,7 +2,7 @@
 // Stratégie : réseau en priorité, repli sur le cache si hors-ligne.
 // Ne met JAMAIS en cache les appels vers Supabase (données dynamiques distantes).
 
-const CACHE_NAME = 'boutique-tdc-cache-v3';
+const CACHE_NAME = 'pilotstore-cache-v4';
 const APP_SHELL = [
     './',
     './index.html',
